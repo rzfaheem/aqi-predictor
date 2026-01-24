@@ -8,9 +8,6 @@ venv/
 env/
 .env
 
-# Config with secrets (use config.example.py as template)
-config.py
-
 # Jupyter Notebook
 .ipynb_checkpoints/
 
