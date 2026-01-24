@@ -1,7 +1,7 @@
 name: Feature Pipeline (Hourly)
 
 # This workflow runs the feature pipeline every hour
-# It fetches new data from APIs and stores features in MongoDB
+# It fetches new data from APIs and creates features for MongoDB
 
 on:
   schedule:
@@ -27,9 +27,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pymongo requests pandas numpy dnspython
+          pip install pymongo requests pandas numpy dnspython scikit-learn
       
-      - name: Run feature pipeline
+      - name: Fetch new data
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
@@ -37,5 +37,14 @@ jobs:
         run: |
           echo "🕐 Fetching current weather and pollution data..."
           python src/data_fetcher.py
-          echo "✅ Feature pipeline completed"
-
+          echo "✅ Raw data fetched"
+      
+      - name: Run feature engineering
+        env:
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          echo "⚙️ Creating features from raw data..."
+          python src/feature_engineering.py
+          echo "✅ Features created and saved to MongoDB"
