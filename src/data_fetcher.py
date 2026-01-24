@@ -350,11 +350,15 @@ class DataFetcher:
 
 if __name__ == "__main__":
     """
-    Test the DataFetcher by running: python src/data_fetcher.py
+    Fetch current data and SAVE it to MongoDB.
+    This runs as part of the hourly Feature Pipeline.
     """
     print("\n" + "=" * 60)
-    print("TESTING DATA FETCHER")
+    print("🕐 HOURLY DATA FETCHER")
     print("=" * 60 + "\n")
+    
+    # Import database module
+    from src.database import Database
     
     # Create fetcher instance
     fetcher = DataFetcher()
@@ -379,3 +383,41 @@ if __name__ == "__main__":
         print(f"   Wind Speed: {current_data['weather']['wind_speed']} m/s")
         print(f"   AQI: {current_data['pollution']['aqi_standard']}")
         print(f"   PM2.5: {current_data['pollution']['pm2_5']} μg/m³")
+        
+        # SAVE TO MONGODB
+        print("\n3. Saving to MongoDB...")
+        db = Database()
+        
+        # Format data for MongoDB (flatten the structure)
+        record = {
+            "city": current_data['city'],
+            "timestamp": current_data['timestamp'],
+            # Weather data
+            "temperature": current_data['weather']['temperature'],
+            "humidity": current_data['weather']['humidity'],
+            "pressure": current_data['weather']['pressure'],
+            "wind_speed": current_data['weather']['wind_speed'],
+            # Pollution data
+            "aqi": current_data['pollution']['aqi'],
+            "aqi_standard": current_data['pollution']['aqi_standard'],
+            "pm2_5": current_data['pollution']['pm2_5'],
+            "pm10": current_data['pollution']['pm10'],
+            "no2": current_data['pollution']['no2'],
+            "o3": current_data['pollution']['o3'],
+            "co": current_data['pollution']['co'],
+            "so2": current_data['pollution']['so2']
+        }
+        
+        # Save to raw_weather_data collection
+        result = db.save_raw_data(record)
+        print(f"✅ Data saved to MongoDB with ID: {result}")
+        
+        # Count total records
+        count = db.raw_data.count_documents({})
+        print(f"📊 Total records in raw_weather_data: {count}")
+        
+        print("\n🎉 Data fetch and save complete!")
+    else:
+        print("❌ Failed to fetch data")
+        exit(1)
+
