@@ -111,7 +111,7 @@ def prepare_data(df, target_col='target_24h'):
     y = df[target_col].copy()
     
     # Handle any remaining NaN
-    X = X.fillna(method='ffill').fillna(method='bfill')
+    X = X.ffill().bfill()
     
     # Remove rows where target is NaN
     valid_idx = ~y.isna()
