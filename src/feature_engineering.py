@@ -103,7 +103,7 @@ def clean_data(df):
     numeric_cols = ['aqi', 'aqi_standard', 'pm2_5', 'pm10', 'no2', 'o3', 'co', 'so2']
     for col in numeric_cols:
         if col in df.columns:
-            df[col] = df[col].fillna(method='ffill')
+            df[col] = df[col].ffill()
     
     # Step 5: Handle outliers using IQR method for AQI
     # (Values too extreme might be errors)
