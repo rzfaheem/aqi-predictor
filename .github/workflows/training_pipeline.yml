@@ -27,12 +27,29 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pymongo requests pandas numpy scikit-learn xgboost
+          pip install pymongo requests pandas numpy scikit-learn xgboost dnspython
+      
+      - name: Debug - Check files
+        run: |
+          echo "📁 Listing project files:"
+          ls -la
+          echo "📁 Listing src folder:"
+          ls -la src/
+          echo "📁 Checking config.py exists:"
+          cat config.py | head -30
       
       - name: Run training pipeline
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
+          PYTHONPATH: ${{ github.workspace }}
         run: |
+          echo "🔑 Checking environment variables..."
+          echo "OPENWEATHER_API_KEY is set: $(if [ -n \"$OPENWEATHER_API_KEY\" ]; then echo 'YES'; else echo 'NO'; fi)"
+          echo "MONGODB_CONNECTION_STRING is set: $(if [ -n \"$MONGODB_CONNECTION_STRING\" ]; then echo 'YES'; else echo 'NO'; fi)"
+          echo "PYTHONPATH: $PYTHONPATH"
+          echo ""
+          echo "🚀 Running training pipeline..."
           python src/train_model.py
           echo "✅ Training pipeline completed"
+
