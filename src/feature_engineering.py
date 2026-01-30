@@ -418,11 +418,6 @@ if __name__ == "__main__":
     # Step 5: Save to MongoDB
     save_features_to_mongodb(df_final, feature_names, target_names)
     
-    # Step 6: Save to CSV for easy access
-    csv_path = "notebooks/features.csv"
-    df_final.to_csv(csv_path, index=False)
-    print(f"\n💾 Features also saved to: {csv_path}")
-    
     # Summary
     print("\n" + "=" * 60)
     print("📊 FEATURE ENGINEERING SUMMARY")

@@ -409,9 +409,4 @@ if __name__ == "__main__":
     # Step 5: Generate report
     generate_eda_report(df, chart_dir)
     
-    # Save cleaned data to CSV for easy access
-    csv_path = "notebooks/cleaned_data.csv"
-    df.to_csv(csv_path, index=False)
-    print(f"\n💾 Cleaned data saved to: {csv_path}")
-    
     print("\n🎉 EDA Complete! Check the charts in 'notebooks/eda_charts/' folder")

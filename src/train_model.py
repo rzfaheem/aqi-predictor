@@ -73,18 +73,11 @@ def load_features():
     features = db.get_features()
     
     if not features:
-        # Try loading from CSV as fallback
-        csv_path = "notebooks/features.csv"
-        if os.path.exists(csv_path):
-            print("   Loading from CSV instead...")
-            df = pd.read_csv(csv_path)
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-            return df
-        print("❌ No features found!")
+        print("❌ No features found in MongoDB!")
         return None
     
     df = pd.DataFrame(features)
-    print(f"✅ Loaded {len(df)} feature records")
+    print(f"✅ Loaded {len(df)} feature records from MongoDB")
     return df
 
 
