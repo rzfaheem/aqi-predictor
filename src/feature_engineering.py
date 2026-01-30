@@ -257,20 +257,25 @@ def create_change_features(df, target_col='aqi_standard'):
     return df
 
 
-def create_target_variable(df, target_col='aqi_standard', forecast_hours=24):
+def create_target_variable(df, target_col='pm2_5', forecast_hours=24):
     """
     Create the target variable (what we want to predict).
     
-    TARGET = The future AQI value we want to predict
+    TARGET = The future PM2.5 value we want to predict
+    
+    WHY PM2.5 INSTEAD OF AQI?
+    - PM2.5 is continuous (145.2, 152.8, 160.5...) - better for ML training
+    - AQI from OpenWeather is discrete (only 5 levels: 25, 75, 125, 175, 250)
+    - We can convert PM2.5 back to AQI categories for display after prediction
     
     For 3-day forecast, we'll create multiple targets:
-    - target_1h: AQI 1 hour from now
-    - target_6h: AQI 6 hours from now
-    - target_24h: AQI 24 hours from now (1 day)
-    - target_48h: AQI 48 hours from now (2 days)
-    - target_72h: AQI 72 hours from now (3 days)
+    - target_1h: PM2.5 1 hour from now
+    - target_6h: PM2.5 6 hours from now
+    - target_24h: PM2.5 24 hours from now (1 day)
+    - target_48h: PM2.5 48 hours from now (2 days)
+    - target_72h: PM2.5 72 hours from now (3 days)
     """
-    print("\n🎯 Creating target variables...")
+    print("\n🎯 Creating target variables (using PM2.5 for continuous values)...")
     
     if target_col not in df.columns:
         print(f"❌ Column {target_col} not found!")
@@ -285,7 +290,7 @@ def create_target_variable(df, target_col='aqi_standard', forecast_hours=24):
     df['target_48h'] = df[target_col].shift(-48)   # 2 days ahead
     df['target_72h'] = df[target_col].shift(-72)   # 3 days ahead
     
-    print("   ✅ Created: target_1h/6h/12h/24h/48h/72h")
+    print("   ✅ Created: target_1h/6h/12h/24h/48h/72h (based on PM2.5)")
     return df
 
 

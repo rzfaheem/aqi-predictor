@@ -92,6 +92,49 @@ def get_aqi_category(aqi):
         return "Hazardous", "⚫", "#880e4f", "Emergency conditions"
 
 
+def pm25_to_aqi(pm25):
+    """
+    Convert PM2.5 concentration (μg/m³) to AQI value.
+    
+    Uses EPA AQI breakpoints for PM2.5.
+    This allows us to train on continuous PM2.5 values but display
+    the standard AQI scale that users understand.
+    
+    PM2.5 Breakpoints (μg/m³) → AQI:
+    0-12.0    → 0-50     (Good)
+    12.1-35.4 → 51-100   (Moderate)
+    35.5-55.4 → 101-150  (Unhealthy for Sensitive)
+    55.5-150.4 → 151-200 (Unhealthy)
+    150.5-250.4 → 201-300 (Very Unhealthy)
+    250.5-500.4 → 301-500 (Hazardous)
+    """
+    # EPA PM2.5 to AQI breakpoints
+    breakpoints = [
+        (0, 12.0, 0, 50),
+        (12.1, 35.4, 51, 100),
+        (35.5, 55.4, 101, 150),
+        (55.5, 150.4, 151, 200),
+        (150.5, 250.4, 201, 300),
+        (250.5, 500.4, 301, 500),
+    ]
+    
+    # Handle edge cases
+    if pm25 < 0:
+        return 0
+    if pm25 > 500:
+        return 500
+    
+    # Find the right breakpoint and calculate AQI
+    for pm_low, pm_high, aqi_low, aqi_high in breakpoints:
+        if pm_low <= pm25 <= pm_high:
+            # Linear interpolation
+            aqi = ((aqi_high - aqi_low) / (pm_high - pm_low)) * (pm25 - pm_low) + aqi_low
+            return round(aqi)
+    
+    # If pm25 is above all breakpoints
+    return 500
+
+
 def load_model():
     """Load the trained model from file."""
     model_path = "models/best_model_target_24h.pkl"
@@ -137,9 +180,14 @@ def get_feature_for_prediction(current_data, db):
 
 
 def make_prediction(model_data, features):
-    """Make AQI prediction using the model."""
+    """
+    Make PM2.5 prediction using the model, then convert to AQI.
+    
+    The model predicts PM2.5 (continuous values) for better accuracy,
+    then we convert to AQI for user-friendly display.
+    """
     if model_data is None or features is None:
-        return None
+        return None, None
     
     model = model_data['model']
     feature_names = model_data['feature_names']
@@ -163,10 +211,13 @@ def make_prediction(model_data, features):
     if scaler is not None:
         X = scaler.transform(X)
     
-    # Make prediction
-    prediction = model.predict(X)[0]
+    # Make prediction (returns PM2.5 in μg/m³)
+    pm25_prediction = model.predict(X)[0]
     
-    return prediction
+    # Convert PM2.5 to AQI for display
+    aqi_prediction = pm25_to_aqi(pm25_prediction)
+    
+    return pm25_prediction, aqi_prediction
 
 
 # ========================================
