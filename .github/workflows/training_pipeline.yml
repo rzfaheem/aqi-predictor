@@ -5,11 +5,17 @@ name: Training Pipeline (Daily)
 
 on:
   schedule:
-    # Run every day at midnight UTC
+    # Run every day at midnight UTC (5 AM Pakistan time)
     - cron: '0 0 * * *'
   
   # Also allow manual trigger
   workflow_dispatch:
+  
+  # Run on push to help activate schedules
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/training_pipeline.yml'
 
 jobs:
   run-training-pipeline:
