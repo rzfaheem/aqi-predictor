@@ -306,26 +306,57 @@ def main():
     model_data = load_model()
     
     if model_data:
-        # Create forecast (simulated for now based on current + trend)
-        current_aqi = current_data['pollution']['aqi_standard'] if current_data else 125
+        # Get database connection for features
+        db = Database()
+        
+        # Get current PM2.5 for display
+        current_pm25 = current_data['pollution']['pm2_5'] if current_data else 100
+        current_aqi = pm25_to_aqi(current_pm25)
+        
+        # Get features for prediction
+        features = get_feature_for_prediction(current_data, db)
+        
+        # Make predictions using the trained model
+        # Model predicts PM2.5, then we convert to AQI
+        pm25_pred, aqi_pred = make_prediction(model_data, features)
         
         # Generate forecast data
+        # We use the 24h prediction as base and estimate other horizons
+        # In production, you'd have separate models for each horizon
         forecast_hours = [1, 6, 12, 24, 48, 72]
         forecast_values = []
         
-        for h in forecast_hours:
-            # Simple forecast: current + small random variation
-            # In real scenario, this would use the model for each time step
-            variation = np.random.uniform(-10, 10)
-            forecast_val = max(0, current_aqi + variation * (h / 24))
-            forecast_values.append(forecast_val)
+        if pm25_pred is not None:
+            # Use model prediction as base
+            base_pm25 = pm25_pred
+            
+            for h in forecast_hours:
+                # Scale prediction based on forecast horizon
+                # Closer hours are more certain, further hours have more drift
+                if h <= 24:
+                    # Short-term: use model prediction with small adjustment
+                    scale = h / 24  # 0 to 1 for 0-24 hours
+                    pm25_forecast = current_pm25 + (base_pm25 - current_pm25) * scale
+                else:
+                    # Long-term: trend continues with slight uncertainty
+                    pm25_forecast = base_pm25 * (h / 24) * 0.95  # slight decay
+                
+                # Convert PM2.5 to AQI
+                aqi_forecast = pm25_to_aqi(max(0, pm25_forecast))
+                forecast_values.append(aqi_forecast)
+        else:
+            # Fallback if prediction fails
+            st.warning("⚠️ Model prediction unavailable. Showing estimated values.")
+            for h in forecast_hours:
+                forecast_values.append(current_aqi)
         
         # Create forecast dataframe
         now = datetime.now()
         forecast_df = pd.DataFrame({
             'Hours Ahead': forecast_hours,
             'Time': [now + timedelta(hours=h) for h in forecast_hours],
-            'Predicted AQI': forecast_values
+            'Predicted AQI': forecast_values,
+            'Predicted PM2.5': [current_pm25] + [pm25_pred if pm25_pred else current_pm25] * 5
         })
         
         # Forecast Chart
