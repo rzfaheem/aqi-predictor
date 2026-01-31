@@ -329,22 +329,28 @@ def main():
         forecast_values = []
         
         if pm25_pred is not None:
-            # Use model prediction as base
+            # Use model prediction as base (this is 24h ahead prediction)
             base_pm25 = pm25_pred
             
             for h in forecast_hours:
                 # Scale prediction based on forecast horizon
-                # Closer hours are more certain, further hours have more drift
+                # All predictions are based on the 24h model prediction
                 if h <= 24:
-                    # Short-term: use model prediction with small adjustment
+                    # Short-term: interpolate from current to predicted
                     scale = h / 24  # 0 to 1 for 0-24 hours
                     pm25_forecast = current_pm25 + (base_pm25 - current_pm25) * scale
                 else:
-                    # Long-term: trend continues with slight uncertainty
-                    pm25_forecast = base_pm25 * (h / 24) * 0.95  # slight decay
+                    # Long-term (48h, 72h): use 24h prediction with slight variation
+                    # Real systems would train separate models for each horizon
+                    # For now, we assume conditions stay similar with small random drift
+                    days_ahead = h / 24  # 2 for 48h, 3 for 72h
+                    # Add small uncertainty (±5% per day)
+                    uncertainty = 1 + (days_ahead - 1) * 0.05
+                    pm25_forecast = base_pm25 * uncertainty
                 
-                # Convert PM2.5 to AQI
-                aqi_forecast = pm25_to_aqi(max(0, pm25_forecast))
+                # Convert PM2.5 to AQI (capped at reasonable values)
+                pm25_forecast = max(0, min(pm25_forecast, 500))  # Cap at 500
+                aqi_forecast = pm25_to_aqi(pm25_forecast)
                 forecast_values.append(aqi_forecast)
         else:
             # Fallback if prediction fails
