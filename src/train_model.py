@@ -46,7 +46,7 @@ warnings.filterwarnings('ignore')
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Machine Learning imports
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, TimeSeriesSplit
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import Ridge
 from sklearn.ensemble import RandomForestRegressor
@@ -119,26 +119,50 @@ def prepare_data(df, target_col='target_24h'):
 
 def split_data(X, y, test_size=0.2):
     """
-    Split data into training and testing sets.
+    Split data into training and testing sets using TimeSeriesSplit.
     
-    WHY SPLIT?
-    - Training set: Used to TRAIN the model
-    - Testing set: Used to EVALUATE the model on unseen data
-    - This prevents overfitting (model memorizing training data)
+    WHY TIMESERIESSPLIT?
+    - Regular K-Fold mixes past and future data = DATA LEAKAGE!
+    - TimeSeriesSplit always trains on past, tests on future
+    - Gives more reliable performance estimates
     
-    IMPORTANT: For time series, we don't shuffle!
-    We train on past data and test on future data.
+    HOW IT WORKS:
+    Fold 1: [Train: 1,2]     [Test: 3]     
+    Fold 2: [Train: 1,2,3]   [Test: 4]     
+    Fold 3: [Train: 1,2,3,4] [Test: 5]     
+    
+    We return the LAST fold (largest training set) for final evaluation.
     """
-    print(f"\n✂️ Splitting data (test_size={test_size})...")
+    print(f"\n✂️ Splitting data with TimeSeriesSplit...")
     
-    # For time series: Use the last 20% as test (no shuffling!)
-    split_idx = int(len(X) * (1 - test_size))
+    # Use TimeSeriesSplit for proper time series validation
+    n_splits = 5  # 5-fold cross-validation
+    tscv = TimeSeriesSplit(n_splits=n_splits)
     
-    X_train = X.iloc[:split_idx]
-    X_test = X.iloc[split_idx:]
-    y_train = y.iloc[:split_idx]
-    y_test = y.iloc[split_idx:]
+    # Store results from each fold for reporting
+    fold_results = []
     
+    for fold, (train_idx, test_idx) in enumerate(tscv.split(X), 1):
+        fold_results.append({
+            'fold': fold,
+            'train_size': len(train_idx),
+            'test_size': len(test_idx)
+        })
+    
+    # Print fold summary
+    print(f"   TimeSeriesSplit with {n_splits} folds:")
+    for result in fold_results:
+        print(f"   Fold {result['fold']}: Train={result['train_size']}, Test={result['test_size']}")
+    
+    # Get the LAST fold (largest training set) for primary evaluation
+    last_train_idx, last_test_idx = list(tscv.split(X))[-1]
+    
+    X_train = X.iloc[last_train_idx]
+    X_test = X.iloc[last_test_idx]
+    y_train = y.iloc[last_train_idx]
+    y_test = y.iloc[last_test_idx]
+    
+    print(f"\n   Using last fold for training:")
     print(f"   Training samples: {len(X_train)}")
     print(f"   Testing samples: {len(X_test)}")
     
