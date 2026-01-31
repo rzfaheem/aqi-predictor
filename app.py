@@ -252,7 +252,9 @@ def main():
         pollution = current_data.get('pollution', {})
         weather = current_data.get('weather', {})
         
-        current_aqi = pollution.get('aqi_standard', 0)
+        # Use PM2.5 → AQI conversion for consistent display (matches forecast)
+        current_pm25 = pollution.get('pm2_5', 0)
+        current_aqi = pm25_to_aqi(current_pm25)
         category, emoji, color, health_msg = get_aqi_category(current_aqi)
         
         # Display current AQI prominently
