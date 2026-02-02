@@ -387,20 +387,6 @@ def main():
         # Forecast Chart
         fig = go.Figure()
         
-        # Add CONFIDENCE INTERVAL (±10% uncertainty band)
-        upper_bound = [aqi * 1.10 for aqi in forecast_values]
-        lower_bound = [aqi * 0.90 for aqi in forecast_values]
-        
-        fig.add_trace(go.Scatter(
-            x=list(forecast_df['Time']) + list(forecast_df['Time'])[::-1],
-            y=upper_bound + lower_bound[::-1],
-            fill='toself',
-            fillcolor='rgba(255,0,0,0.1)',
-            line=dict(color='rgba(255,255,255,0)'),
-            showlegend=True,
-            name='Confidence Interval (±10%)'
-        ))
-        
         # Add current AQI point
         fig.add_trace(go.Scatter(
             x=[now],
