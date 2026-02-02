@@ -350,6 +350,13 @@ def prepare_final_features(df):
     print(f"   Features: {len(available_features)}")
     print(f"   Targets: {len(available_targets)}")
     
+    # Handle case where no complete records are available
+    if final_count == 0:
+        print("   ⚠️ Warning: No complete records after removing NaN. Need more historical data.")
+        print("   ⚠️ This is expected for new installations with limited data.")
+        # Return empty but valid structure
+        return df_final, available_features, available_targets
+    
     return df_final, available_features, available_targets
 
 
@@ -361,11 +368,17 @@ def save_features_to_mongodb(df, features, targets):
     
     db = Database()
     
-    # Clear existing features (to avoid duplicates)
-    db.features.delete_many({})
-    
     # Convert DataFrame to list of dictionaries
     records = df.to_dict('records')
+    
+    # Handle empty data case
+    if len(records) == 0:
+        print("   ⚠️ No records to save. Skipping database update.")
+        print("   ⚠️ This is expected when there's insufficient historical data.")
+        return
+    
+    # Clear existing features (to avoid duplicates)
+    db.features.delete_many({})
     
     # Save in batches
     batch_size = 100
