@@ -311,8 +311,11 @@ def prepare_final_features(df):
         'hour', 'day_of_week', 'day', 'month', 'is_weekend',
         'hour_sin', 'hour_cos',
         
-        # Current values
-        'aqi_standard', 'pm2_5', 'pm10', 'no2', 'o3', 'co', 'so2',
+        # Weather features (IMPORTANT for AQI prediction!)
+        'temp', 'humidity', 'pressure', 'wind_speed', 'clouds',
+        
+        # Pollutant values
+        'pm2_5', 'pm10', 'no2', 'o3', 'co', 'so2',
         
         # Lag features
         'aqi_lag_1h', 'aqi_lag_3h', 'aqi_lag_6h', 'aqi_lag_12h', 'aqi_lag_24h',

@@ -46,7 +46,7 @@ warnings.filterwarnings('ignore')
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Machine Learning imports
-from sklearn.model_selection import train_test_split, TimeSeriesSplit
+from sklearn.model_selection import TimeSeriesSplit
 from sklearn.preprocessing import StandardScaler
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.linear_model import Ridge
