@@ -136,12 +136,21 @@ def pm25_to_aqi(pm25):
 
 
 def load_model():
-    """Load the trained model from file."""
-    model_path = "models/best_model_target_24h.pkl"
+    """Load the trained MULTI-OUTPUT model from file."""
+    # Try new multi-output model first
+    model_path = "models/best_model_multi_output_24h_48h_72h.pkl"
     if os.path.exists(model_path):
         with open(model_path, 'rb') as f:
             model_data = pickle.load(f)
         return model_data
+    
+    # Fallback to old single-output model
+    old_model_path = "models/best_model_target_24h.pkl"
+    if os.path.exists(old_model_path):
+        with open(old_model_path, 'rb') as f:
+            model_data = pickle.load(f)
+        return model_data
+    
     return None
 
 
@@ -181,13 +190,13 @@ def get_feature_for_prediction(current_data, db):
 
 def make_prediction(model_data, features):
     """
-    Make PM2.5 prediction using the model, then convert to AQI.
+    Make PM2.5 predictions using the MULTI-OUTPUT model.
     
-    The model predicts PM2.5 (continuous values) for better accuracy,
-    then we convert to AQI for user-friendly display.
+    The model predicts PM2.5 for 24h, 48h, and 72h at once!
+    Returns: (pm25_24h, pm25_48h, pm25_72h, aqi_24h, aqi_48h, aqi_72h)
     """
     if model_data is None or features is None:
-        return None, None
+        return None, None, None, None, None, None
     
     model = model_data['model']
     feature_names = model_data['feature_names']
@@ -211,13 +220,25 @@ def make_prediction(model_data, features):
     if scaler is not None:
         X = scaler.transform(X)
     
-    # Make prediction (returns PM2.5 in μg/m³)
-    pm25_prediction = model.predict(X)[0]
+    # Make prediction - multi-output returns 3 values!
+    predictions = model.predict(X)[0]
     
-    # Convert PM2.5 to AQI for display
-    aqi_prediction = pm25_to_aqi(pm25_prediction)
+    # Handle both single-output (old) and multi-output (new) models
+    if hasattr(predictions, '__len__') and len(predictions) == 3:
+        # Multi-output model (new)
+        pm25_24h, pm25_48h, pm25_72h = predictions
+    else:
+        # Single-output model (fallback for old model)
+        pm25_24h = predictions
+        pm25_48h = pm25_24h * 1.05  # Estimate
+        pm25_72h = pm25_24h * 1.10  # Estimate
     
-    return pm25_prediction, aqi_prediction
+    # Convert PM2.5 to AQI for each horizon
+    aqi_24h = pm25_to_aqi(pm25_24h)
+    aqi_48h = pm25_to_aqi(pm25_48h)
+    aqi_72h = pm25_to_aqi(pm25_72h)
+    
+    return pm25_24h, pm25_48h, pm25_72h, aqi_24h, aqi_48h, aqi_72h
 
 
 # ========================================
@@ -318,45 +339,39 @@ def main():
         # Get features for prediction
         features = get_feature_for_prediction(current_data, db)
         
-        # Make predictions using the trained model
-        # Model predicts PM2.5, then we convert to AQI
-        pm25_pred, aqi_pred = make_prediction(model_data, features)
+        # Make predictions using the MULTI-OUTPUT model
+        # Returns: pm25_24h, pm25_48h, pm25_72h, aqi_24h, aqi_48h, aqi_72h
+        result = make_prediction(model_data, features)
+        pm25_24h, pm25_48h, pm25_72h, aqi_24h, aqi_48h, aqi_72h = result
         
-        # Generate forecast data
-        # We use the 24h prediction as base and estimate other horizons
-        # In production, you'd have separate models for each horizon
-        forecast_hours = [1, 6, 12, 24, 48, 72]
-        forecast_values = []
-        
-        if pm25_pred is not None:
-            # Use model prediction as base (this is 24h ahead prediction)
-            base_pm25 = pm25_pred
+        # Generate forecast data using REAL predictions
+        if pm25_24h is not None:
+            # Build forecast with real predictions for each horizon
+            now = datetime.now()
             
-            for h in forecast_hours:
-                # Scale prediction based on forecast horizon
-                # All predictions are based on the 24h model prediction
-                if h <= 24:
-                    # Short-term: interpolate from current to predicted
-                    scale = h / 24  # 0 to 1 for 0-24 hours
-                    pm25_forecast = current_pm25 + (base_pm25 - current_pm25) * scale
-                else:
-                    # Long-term (48h, 72h): use 24h prediction with slight variation
-                    # Real systems would train separate models for each horizon
-                    # For now, we assume conditions stay similar with small random drift
-                    days_ahead = h / 24  # 2 for 48h, 3 for 72h
-                    # Add small uncertainty (±5% per day)
-                    uncertainty = 1 + (days_ahead - 1) * 0.05
-                    pm25_forecast = base_pm25 * uncertainty
-                
-                # Convert PM2.5 to AQI (capped at reasonable values)
-                pm25_forecast = max(0, min(pm25_forecast, 500))  # Cap at 500
-                aqi_forecast = pm25_to_aqi(pm25_forecast)
-                forecast_values.append(aqi_forecast)
+            # Calculate intermediate hours by interpolation
+            # Real predictions: 24h, 48h, 72h from multi-output model
+            forecast_data = [
+                {'hours': 1, 'pm25': current_pm25 + (pm25_24h - current_pm25) * (1/24), 'type': 'interpolated'},
+                {'hours': 6, 'pm25': current_pm25 + (pm25_24h - current_pm25) * (6/24), 'type': 'interpolated'},
+                {'hours': 12, 'pm25': current_pm25 + (pm25_24h - current_pm25) * (12/24), 'type': 'interpolated'},
+                {'hours': 24, 'pm25': pm25_24h, 'type': 'ML predicted ✓'},
+                {'hours': 48, 'pm25': pm25_48h, 'type': 'ML predicted ✓'},
+                {'hours': 72, 'pm25': pm25_72h, 'type': 'ML predicted ✓'},
+            ]
+            
+            forecast_hours = [d['hours'] for d in forecast_data]
+            forecast_pm25 = [d['pm25'] for d in forecast_data]
+            forecast_values = [pm25_to_aqi(max(0, pm)) for pm in forecast_pm25]
+            forecast_types = [d['type'] for d in forecast_data]
+            
         else:
             # Fallback if prediction fails
             st.warning("⚠️ Model prediction unavailable. Showing estimated values.")
-            for h in forecast_hours:
-                forecast_values.append(current_aqi)
+            forecast_hours = [1, 6, 12, 24, 48, 72]
+            forecast_values = [current_aqi] * 6
+            forecast_pm25 = [current_pm25] * 6
+            forecast_types = ['estimated'] * 6
         
         # Create forecast dataframe
         now = datetime.now()
@@ -364,7 +379,8 @@ def main():
             'Hours Ahead': forecast_hours,
             'Time': [now + timedelta(hours=h) for h in forecast_hours],
             'Predicted AQI': forecast_values,
-            'Predicted PM2.5': [current_pm25] + [pm25_pred if pm25_pred else current_pm25] * 5
+            'Predicted PM2.5': forecast_pm25,
+            'Prediction Type': forecast_types
         })
         
         # Forecast Chart

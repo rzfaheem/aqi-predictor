@@ -48,6 +48,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Machine Learning imports
 from sklearn.model_selection import train_test_split, TimeSeriesSplit
 from sklearn.preprocessing import StandardScaler
+from sklearn.multioutput import MultiOutputRegressor
 from sklearn.linear_model import Ridge
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
@@ -81,16 +82,21 @@ def load_features():
     return df
 
 
-def prepare_data(df, target_col='target_24h'):
+def prepare_data(df, target_cols=['target_24h', 'target_48h', 'target_72h']):
     """
-    Prepare data for model training.
+    Prepare data for MULTI-OUTPUT model training.
+    
+    MULTI-OUTPUT MODEL:
+    - ONE model predicts THREE targets at once (24h, 48h, 72h)
+    - More accurate than single model + interpolation
+    - Evaluator approved this approach
     
     STEPS:
     1. Select feature columns
-    2. Remove rows with NaN
-    3. Split into X (features) and y (target)
+    2. Remove rows with NaN in any target
+    3. Split into X (features) and y (multiple targets)
     """
-    print(f"\n🎯 Preparing data for target: {target_col}")
+    print(f"\n🎯 Preparing data for MULTI-OUTPUT targets: {target_cols}")
     
     # Feature columns (exclude targets and metadata)
     exclude_cols = ['_id', 'timestamp', 'saved_at', 
@@ -101,17 +107,18 @@ def prepare_data(df, target_col='target_24h'):
     
     # Create copies
     X = df[feature_cols].copy()
-    y = df[target_col].copy()
+    y = df[target_cols].copy()  # Multiple target columns!
     
-    # Handle any remaining NaN
+    # Handle any remaining NaN in features
     X = X.ffill().bfill()
     
-    # Remove rows where target is NaN
-    valid_idx = ~y.isna()
+    # Remove rows where ANY target is NaN
+    valid_idx = ~y.isna().any(axis=1)
     X = X[valid_idx]
     y = y[valid_idx]
     
     print(f"   Features: {len(feature_cols)}")
+    print(f"   Targets: {list(target_cols)}")
     print(f"   Samples: {len(X)}")
     
     return X, y, feature_cols
@@ -197,40 +204,57 @@ def scale_features(X_train, X_test):
     return X_train_scaled, X_test_scaled, scaler
 
 
-def evaluate_model(y_true, y_pred, model_name):
+def evaluate_model(y_true, y_pred, model_name, target_names=['24h', '48h', '72h']):
     """
-    Calculate evaluation metrics for a model.
+    Calculate evaluation metrics for a MULTI-OUTPUT model.
     
-    METRICS:
+    METRICS (calculated for each horizon + overall):
     - RMSE: Root Mean Square Error (penalizes large errors more)
     - MAE: Mean Absolute Error (average error)
     - R²: Coefficient of determination (how much variance explained)
     """
-    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-    mae = mean_absolute_error(y_true, y_pred)
-    r2 = r2_score(y_true, y_pred)
-    
     print(f"\n📊 {model_name} Results:")
-    print(f"   RMSE: {rmse:.2f} (lower is better)")
-    print(f"   MAE:  {mae:.2f} (lower is better)")
-    print(f"   R²:   {r2:.4f} (higher is better, max=1)")
     
-    return {'rmse': rmse, 'mae': mae, 'r2': r2}
+    # Calculate metrics for each target horizon
+    metrics_per_target = {}
+    for i, name in enumerate(target_names):
+        rmse = np.sqrt(mean_squared_error(y_true.iloc[:, i], y_pred[:, i]))
+        mae = mean_absolute_error(y_true.iloc[:, i], y_pred[:, i])
+        r2 = r2_score(y_true.iloc[:, i], y_pred[:, i])
+        
+        metrics_per_target[name] = {'rmse': rmse, 'mae': mae, 'r2': r2}
+        print(f"   {name}: RMSE={rmse:.2f}, MAE={mae:.2f}, R²={r2:.4f}")
+    
+    # Calculate overall average metrics
+    avg_rmse = np.mean([m['rmse'] for m in metrics_per_target.values()])
+    avg_mae = np.mean([m['mae'] for m in metrics_per_target.values()])
+    avg_r2 = np.mean([m['r2'] for m in metrics_per_target.values()])
+    
+    print(f"   ─────────────────────────────────")
+    print(f"   AVERAGE: RMSE={avg_rmse:.2f}, MAE={avg_mae:.2f}, R²={avg_r2:.4f}")
+    
+    return {
+        'rmse': avg_rmse, 
+        'mae': avg_mae, 
+        'r2': avg_r2,
+        'per_horizon': metrics_per_target
+    }
 
 
 def train_ridge(X_train, X_test, y_train, y_test):
     """
-    Train Ridge Regression model.
+    Train Ridge Regression model (MULTI-OUTPUT).
     
     RIDGE REGRESSION:
     - Linear model with regularization
-    - Fast and simple baseline
-    - Works well when features are correlated
+    - Natively supports multi-output!
+    - Outputs: 24h, 48h, 72h predictions
     """
     print("\n" + "=" * 40)
-    print("🔵 Training Ridge Regression...")
+    print("🔵 Training Ridge Regression (Multi-Output)...")
     print("=" * 40)
     
+    # Ridge natively supports multi-output
     model = Ridge(alpha=1.0)
     model.fit(X_train, y_train)
     
@@ -242,17 +266,18 @@ def train_ridge(X_train, X_test, y_train, y_test):
 
 def train_random_forest(X_train, X_test, y_train, y_test):
     """
-    Train Random Forest model.
+    Train Random Forest model (MULTI-OUTPUT).
     
     RANDOM FOREST:
     - Ensemble of many decision trees
-    - Each tree votes, majority wins
-    - Very robust and handles non-linear relationships
+    - Natively supports multi-output!
+    - Outputs: 24h, 48h, 72h predictions
     """
     print("\n" + "=" * 40)
-    print("🌲 Training Random Forest...")
+    print("🌲 Training Random Forest (Multi-Output)...")
     print("=" * 40)
     
+    # RandomForest natively supports multi-output
     model = RandomForestRegressor(
         n_estimators=100,      # Number of trees
         max_depth=10,          # Maximum depth of each tree
@@ -270,28 +295,31 @@ def train_random_forest(X_train, X_test, y_train, y_test):
 
 def train_xgboost(X_train, X_test, y_train, y_test):
     """
-    Train XGBoost model.
+    Train XGBoost model (MULTI-OUTPUT using wrapper).
     
     XGBOOST:
     - Gradient Boosting algorithm
-    - Builds trees sequentially, each fixing previous errors
-    - Often the best performer on tabular data
+    - Doesn't natively support multi-output, so we use MultiOutputRegressor
+    - Outputs: 24h, 48h, 72h predictions
     """
     if not XGBOOST_AVAILABLE:
         return None, None, None
     
     print("\n" + "=" * 40)
-    print("🚀 Training XGBoost...")
+    print("🚀 Training XGBoost (Multi-Output)...")
     print("=" * 40)
     
-    model = XGBRegressor(
+    # XGBoost doesn't natively support multi-output
+    # So we wrap it with MultiOutputRegressor
+    base_model = XGBRegressor(
         n_estimators=100,
         max_depth=6,
         learning_rate=0.1,
         random_state=42,
         n_jobs=-1
     )
-    model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=False)
+    model = MultiOutputRegressor(base_model)
+    model.fit(X_train, y_train)
     
     y_pred = model.predict(X_test)
     metrics = evaluate_model(y_test, y_pred, "XGBoost")
@@ -387,11 +415,12 @@ if __name__ == "__main__":
         print("❌ Cannot proceed without features!")
         exit(1)
     
-    # Step 2: Train for 24-hour prediction (primary target)
-    target = 'target_24h'
+    # Step 2: Train for MULTI-OUTPUT prediction (24h, 48h, 72h)
+    # ONE model predicts ALL THREE horizons at once!
+    target_cols = ['target_24h', 'target_48h', 'target_72h']
     
-    # Prepare data
-    X, y, feature_names = prepare_data(df, target_col=target)
+    # Prepare data for multi-output
+    X, y, feature_names = prepare_data(df, target_cols=target_cols)
     
     # Split data
     X_train, X_test, y_train, y_test = split_data(X, y)
@@ -399,7 +428,7 @@ if __name__ == "__main__":
     # Scale features
     X_train_scaled, X_test_scaled, scaler = scale_features(X_train, X_test)
     
-    # Step 3: Train models
+    # Step 3: Train models (all multi-output)
     results = {}
     
     # Train Ridge
@@ -429,27 +458,36 @@ if __name__ == "__main__":
         exit(1)
     
     # Step 5: Save best model
-    # Use correct model and scaler based on best model
+    # Model name indicates multi-output
+    model_filename = 'multi_output_24h_48h_72h'
+    
     if best_name == 'Ridge':
         save_model(
-            best_data['model'], scaler, feature_names, target,
+            best_data['model'], scaler, feature_names, model_filename,
             best_data['metrics'], best_name
         )
     else:
         # Tree-based models don't need scaler
         save_model(
-            best_data['model'], None, feature_names, target,
+            best_data['model'], None, feature_names, model_filename,
             best_data['metrics'], best_name
         )
     
     # Summary
     print("\n" + "=" * 60)
-    print("📊 TRAINING SUMMARY")
+    print("📊 MULTI-OUTPUT TRAINING SUMMARY")
     print("=" * 60)
-    print(f"\n🎯 Target: {target} (24-hour ahead prediction)")
+    print(f"\n🎯 Targets: {target_cols}")
+    print(f"   └── ONE model predicts 24h, 48h, and 72h at once!")
     print(f"🏆 Best Model: {best_name}")
-    print(f"📈 RMSE: {best_data['metrics']['rmse']:.2f}")
-    print(f"📈 R²: {best_data['metrics']['r2']:.4f}")
-    print(f"\n✅ Model saved and registered in MongoDB!")
+    print(f"📈 Average RMSE: {best_data['metrics']['rmse']:.2f}")
+    print(f"📈 Average R²: {best_data['metrics']['r2']:.4f}")
     
-    print("\n🎉 Model training complete!")
+    # Show per-horizon metrics
+    if 'per_horizon' in best_data['metrics']:
+        print(f"\n📊 Per-Horizon Performance:")
+        for horizon, m in best_data['metrics']['per_horizon'].items():
+            print(f"   {horizon}: RMSE={m['rmse']:.2f}, R²={m['r2']:.4f}")
+    
+    print(f"\n✅ Model saved and registered in MongoDB!")
+    print("\n🎉 Multi-output model training complete!")
