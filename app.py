@@ -137,8 +137,11 @@ def pm25_to_aqi(pm25):
 
 @st.cache_resource
 def load_model():
-    """Load the trained MULTI-OUTPUT model from file (cached for performance)."""
-    # Try new multi-output model first
+    """Load the trained MULTI-OUTPUT model from file or MongoDB (cached for performance)."""
+    import pickle
+    from src.database import Database
+    
+    # Try local file first (for local development)
     model_path = "models/best_model_multi_output_24h_48h_72h.pkl"
     if os.path.exists(model_path):
         with open(model_path, 'rb') as f:
@@ -151,6 +154,17 @@ def load_model():
         with open(old_model_path, 'rb') as f:
             model_data = pickle.load(f)
         return model_data
+    
+    # Load from MongoDB (for cloud deployment like Streamlit Cloud)
+    try:
+        db = Database()
+        model_doc = db.load_model_binary()
+        if model_doc:
+            model_data = pickle.loads(model_doc["model_binary"])
+            print("✅ Loaded model from MongoDB")
+            return model_data
+    except Exception as e:
+        print(f"⚠️ Could not load from MongoDB: {e}")
     
     return None
 

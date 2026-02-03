@@ -272,6 +272,58 @@ class Database:
             return models[0]
         return None
     
+    def save_model_binary(self, model_data: bytes, model_name: str, metrics: dict, feature_names: list) -> str:
+        """
+        Save the actual model binary to MongoDB for cloud deployment.
+        
+        Parameters:
+            model_data (bytes): Pickled model binary data
+            model_name (str): Name of the model
+            metrics (dict): Model performance metrics
+            feature_names (list): List of feature names used
+        
+        Returns:
+            str: The ID of the saved document
+        """
+        import bson
+        
+        # Create model storage collection if not exists
+        model_storage = self.db["model_storage"]
+        
+        # Remove old models (keep only latest)
+        model_storage.delete_many({})
+        
+        # Save new model
+        doc = {
+            "model_name": model_name,
+            "model_binary": bson.Binary(model_data),
+            "metrics": metrics,
+            "feature_names": feature_names,
+            "saved_at": datetime.utcnow()
+        }
+        result = model_storage.insert_one(doc)
+        print(f"✅ Saved model binary to MongoDB (ID: {result.inserted_id})")
+        return str(result.inserted_id)
+    
+    def load_model_binary(self) -> dict:
+        """
+        Load the model binary from MongoDB.
+        
+        Returns:
+            dict: Model data including binary, or None if not found
+        """
+        model_storage = self.db["model_storage"]
+        model_doc = model_storage.find_one({}, sort=[("saved_at", -1)])
+        
+        if model_doc:
+            return {
+                "model_binary": model_doc["model_binary"],
+                "model_name": model_doc.get("model_name", "Unknown"),
+                "metrics": model_doc.get("metrics", {}),
+                "feature_names": model_doc.get("feature_names", [])
+            }
+        return None
+    
     # ========================================
     # UTILITY FUNCTIONS
     # ========================================

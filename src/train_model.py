@@ -373,19 +373,30 @@ def save_model(model, scaler, feature_names, target_name, metrics, model_name):
     
     # Save model file
     model_path = f"models/best_model_{target_name}.pkl"
+    
+    # Create model data dictionary
+    model_dict = {
+        'model': model,
+        'scaler': scaler,
+        'feature_names': feature_names,
+        'target_name': target_name,
+        'model_name': model_name,
+        'metrics': metrics,
+        'trained_at': datetime.utcnow()
+    }
+    
+    # Save to local file
     with open(model_path, 'wb') as f:
-        pickle.dump({
-            'model': model,
-            'scaler': scaler,
-            'feature_names': feature_names,
-            'target_name': target_name,
-            'model_name': model_name,
-            'trained_at': datetime.utcnow()
-        }, f)
+        pickle.dump(model_dict, f)
     print(f"   ✅ Model saved to: {model_path}")
     
-    # Register in MongoDB
+    # Save to MongoDB (for cloud deployment)
     db = Database()
+    model_binary = pickle.dumps(model_dict)
+    db.save_model_binary(model_binary, model_name, metrics, feature_names)
+    print("   ✅ Model binary saved to MongoDB (for cloud)")
+    
+    # Register in MongoDB (metadata)
     model_info = {
         'model_name': model_name,
         'model_path': model_path,
