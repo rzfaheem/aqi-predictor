@@ -259,21 +259,12 @@ def create_change_features(df, target_col='aqi_standard'):
 
 def create_target_variable(df, target_col='pm2_5', forecast_hours=24):
     """
-    Create the target variable (what we want to predict).
-    
-    TARGET = The future PM2.5 value we want to predict
+    Create target variables for 3-day forecast using PM2.5.
     
     WHY PM2.5 INSTEAD OF AQI?
     - PM2.5 is continuous (145.2, 152.8, 160.5...) - better for ML training
-    - AQI from OpenWeather is discrete (only 5 levels: 25, 75, 125, 175, 250)
-    - We can convert PM2.5 back to AQI categories for display after prediction
-    
-    For 3-day forecast, we'll create multiple targets:
-    - target_1h: PM2.5 1 hour from now
-    - target_6h: PM2.5 6 hours from now
-    - target_24h: PM2.5 24 hours from now (1 day)
-    - target_48h: PM2.5 48 hours from now (2 days)
-    - target_72h: PM2.5 72 hours from now (3 days)
+    - AQI from OpenWeather is discrete (only 5 levels) - 97% same value problem
+    - We convert PM2.5 back to AQI categories for display after prediction
     """
     print("\n🎯 Creating target variables (using PM2.5 for continuous values)...")
     
@@ -282,15 +273,12 @@ def create_target_variable(df, target_col='pm2_5', forecast_hours=24):
         return df
     
     # Shift BACKWARDS to get future values
-    # shift(-1) gives the NEXT value
-    df['target_1h'] = df[target_col].shift(-1)
-    df['target_6h'] = df[target_col].shift(-6)
-    df['target_12h'] = df[target_col].shift(-12)
+    # shift(-24) gets the PM2.5 value from 24 hours ahead
     df['target_24h'] = df[target_col].shift(-24)   # 1 day ahead
     df['target_48h'] = df[target_col].shift(-48)   # 2 days ahead
     df['target_72h'] = df[target_col].shift(-72)   # 3 days ahead
     
-    print("   ✅ Created: target_1h/6h/12h/24h/48h/72h (based on PM2.5)")
+    print("   ✅ Created: target_24h/48h/72h (based on PM2.5)")
     return df
 
 
@@ -330,8 +318,8 @@ def prepare_final_features(df):
         'aqi_pct_change_1h', 'aqi_pct_change_24h'
     ]
     
-    # Target columns
-    target_cols = ['target_1h', 'target_6h', 'target_12h', 'target_24h', 'target_48h', 'target_72h']
+    # Target columns (only the ones we actually predict)
+    target_cols = ['target_24h', 'target_48h', 'target_72h']
     
     # Select available columns
     available_features = [col for col in feature_cols if col in df.columns]
