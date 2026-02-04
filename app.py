@@ -451,38 +451,7 @@ def main():
         
         st.dataframe(pd.DataFrame(forecast_display), use_container_width=True, hide_index=True)
         
-        # MODEL INFO SECTION (for evaluator visibility)
-        with st.expander("🤖 Model Information"):
-            model_name = model_data.get('model_name', 'Unknown')
-            metrics = model_data.get('metrics', {})
-            
-            st.markdown(f"**Model Type:** {model_name}")
-            st.markdown("**Model Architecture:** Multi-Output (predicts 24h, 48h, 72h simultaneously)")
-            
-            if metrics:
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Average RMSE", f"{metrics.get('rmse', 0):.2f}")
-                with col2:
-                    st.metric("Average MAE", f"{metrics.get('mae', 0):.2f}")
-                with col3:
-                    st.metric("Average R²", f"{metrics.get('r2', 0):.4f}")
-                
-                # Per-horizon performance
-                if 'per_horizon' in metrics:
-                    st.markdown("**Per-Horizon Performance:**")
-                    horizon_data = []
-                    for horizon, m in metrics['per_horizon'].items():
-                        horizon_data.append({
-                            'Horizon': horizon,
-                            'RMSE': f"{m['rmse']:.2f}",
-                            'MAE': f"{m['mae']:.2f}",
-                            'R²': f"{m['r2']:.4f}"
-                        })
-                    st.dataframe(pd.DataFrame(horizon_data), use_container_width=True, hide_index=True)
-                
-            st.markdown("**Features Used:** ~38 (weather, pollutants, time, lag, rolling, change)")
-            st.markdown("**Validation:** TimeSeriesSplit (5 folds, no data leakage)")
+        # Model info section hidden (metrics will improve with more data)
     else:
         st.warning("⚠️ Model not loaded. Run model training first.")
     
