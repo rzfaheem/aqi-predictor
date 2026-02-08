@@ -2,26 +2,37 @@
 Configuration file for AQI Predictor Project
 ============================================
 
-This file contains all the configuration settings like API keys and database connection.
+This file reads API keys from environment variables for security.
 
-HOW TO USE:
-1. Replace "YOUR_API_KEY_HERE" with your actual OpenWeather API key
-2. Replace "YOUR_MONGODB_CONNECTION_STRING" with your MongoDB Atlas connection string
+LOCAL SETUP:
+1. Create a .env file in the project root with:
+   OPENWEATHER_API_KEY=your_api_key
+   MONGODB_CONNECTION_STRING=your_connection_string
+
+GITHUB ACTIONS:
+   Secrets are configured in GitHub Settings → Secrets → Actions
 """
+
+import os
+
+# Try to load from .env file for local development
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, will use system env vars
 
 # ============================================================
 # OPENWEATHER API CONFIGURATION
 # ============================================================
 # Get your free API key from: https://openweathermap.org/api
-# After signing up, go to: https://home.openweathermap.org/api_keys
 
-OPENWEATHER_API_KEY = "d82cd440132449f5beeaea4e50915c99"
+OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "")
 
 # ============================================================
 # CITY CONFIGURATION
 # ============================================================
 # We're predicting AQI for Faisalabad, Pakistan
-# Coordinates are needed for the Air Pollution API
 
 CITY_NAME = "Faisalabad"
 CITY_COUNTRY = "Pakistan"
@@ -31,14 +42,9 @@ CITY_LON = 73.1350    # Longitude of Faisalabad
 # ============================================================
 # MONGODB CONFIGURATION  
 # ============================================================
-# Get your connection string from MongoDB Atlas:
-# 1. Go to your cluster
-# 2. Click "Connect" 
-# 3. Choose "Connect your application"
-# 4. Copy the connection string
-# 5. Replace <password> with your actual password
+# Connection string from MongoDB Atlas
 
-MONGODB_CONNECTION_STRING = "mongodb+srv://razafaheem001_db_user:AuzzM7dnOqCGHbJA@cluster0.cpcenwx.mongodb.net/?appName=Cluster0"
+MONGODB_CONNECTION_STRING = os.environ.get("MONGODB_CONNECTION_STRING", "")
 MONGODB_DATABASE_NAME = "aqi_predictor"
 
 # Collection names (like tables in SQL database)
@@ -49,7 +55,6 @@ COLLECTION_MODELS = "model_registry"             # Stores trained models
 # ============================================================
 # AQI CATEGORIES (for alerts and display)
 # ============================================================
-# These are standard AQI categories used worldwide
 
 AQI_CATEGORIES = {
     (0, 50): {"level": "Good", "color": "green", "health": "Air quality is satisfactory"},
@@ -59,3 +64,4 @@ AQI_CATEGORIES = {
     (201, 300): {"level": "Very Unhealthy", "color": "purple", "health": "Health alert, everyone may experience serious effects"},
     (301, 500): {"level": "Hazardous", "color": "maroon", "health": "Emergency conditions, entire population affected"}
 }
+
