@@ -83,7 +83,7 @@ def run_explainability_analysis():
     
     for rank, (idx, row) in enumerate(importance_df.head(15).iterrows(), 1):
         bar_width = row['percentage'] / 2 if pd.notna(row['percentage']) else 0
-        bar = "█" * int(bar_width) if bar_width > 0 else "▏"
+        bar = "#" * int(bar_width) if bar_width > 0 else "|"
         print(f"{rank:<5} {row['feature']:<30} {row['importance']:<12.4f} {row['percentage']:<6.1f}%  {bar}")
     
     # Plot 1: Feature Importance Bar Chart
@@ -165,13 +165,13 @@ def run_explainability_analysis():
         plt.close()
     
     # Summary
-    print(f"\n📊 Most Important: {importance_df.iloc[0]['feature']} ({importance_df.iloc[0]['percentage']:.1f}%)")
+    print(f"\nMost Important: {importance_df.iloc[0]['feature']} ({importance_df.iloc[0]['percentage']:.1f}%)")
     for cat, pct in sorted(category_importance.items(), key=lambda x: x[1], reverse=True):
         if pct > 0:
             print(f"   {cat}: {pct:.1f}%")
     
-    print(f"\n📁 Charts saved in: {output_dir}/")
-    print("✅ Explainability analysis complete!")
+    print(f"\nCharts saved in: {output_dir}/")
+    print("Explainability analysis complete!")
 
 
 if __name__ == "__main__":

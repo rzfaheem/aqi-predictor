@@ -18,22 +18,22 @@ from src.database import Database
 
 def load_raw_data():
     """Load raw data from MongoDB into a DataFrame."""
-    print("📊 Loading raw data from MongoDB...")
+    print("Loading raw data from MongoDB...")
     db = Database()
     raw_data = db.get_raw_data()
     
     if not raw_data:
-        print("❌ No data found!")
+        print("No data found!")
         return None
     
     df = pd.DataFrame(raw_data)
-    print(f"✅ Loaded {len(df)} records")
+    print(f"Loaded {len(df)} records")
     return df
 
 
 def clean_data(df):
     """Clean raw data: handle missing values, duplicates, outliers."""
-    print("\n🧹 Cleaning data...")
+    print("\nCleaning data...")
     initial_count = len(df)
     
     if 'timestamp' in df.columns:
@@ -57,13 +57,13 @@ def clean_data(df):
         upper_bound = Q3 + 1.5 * IQR
         df['aqi_standard'] = df['aqi_standard'].clip(lower=max(0, lower_bound), upper=upper_bound)
     
-    print(f"✅ Cleaned: {initial_count} → {len(df)} records")
+    print(f"Cleaned: {initial_count} -> {len(df)} records")
     return df
 
 
 def create_time_features(df):
     """Extract time-based features from timestamp (hour, day, month, cyclical encoding)."""
-    print("\n⏰ Creating time features...")
+    print("\nCreating time features...")
     
     if 'timestamp' not in df.columns:
         return df
@@ -83,7 +83,7 @@ def create_time_features(df):
 
 def create_lag_features(df, target_col='aqi_standard'):
     """Create lag features (past values at 1h, 3h, 6h, 12h, 24h intervals)."""
-    print("\n⏪ Creating lag features...")
+    print("\nCreating lag features...")
     
     if target_col not in df.columns:
         return df
@@ -103,7 +103,7 @@ def create_lag_features(df, target_col='aqi_standard'):
 
 def create_rolling_features(df, target_col='aqi_standard'):
     """Create rolling average features (3h, 6h, 12h, 24h windows)."""
-    print("\n📈 Creating rolling features...")
+    print("\nCreating rolling features...")
     
     if target_col not in df.columns:
         return df
@@ -123,7 +123,7 @@ def create_rolling_features(df, target_col='aqi_standard'):
 
 def create_change_features(df, target_col='aqi_standard'):
     """Create rate-of-change features (absolute and percentage)."""
-    print("\n📊 Creating change features...")
+    print("\nCreating change features...")
     
     if target_col not in df.columns:
         return df
@@ -141,7 +141,7 @@ def create_change_features(df, target_col='aqi_standard'):
 
 def create_target_variable(df, target_col='pm2_5', forecast_hours=24):
     """Create multi-horizon target variables using PM2.5 (continuous, better for ML)."""
-    print("\n🎯 Creating target variables...")
+    print("\nCreating target variables...")
     
     if target_col not in df.columns:
         return df
@@ -155,23 +155,17 @@ def create_target_variable(df, target_col='pm2_5', forecast_hours=24):
 
 def prepare_final_features(df):
     """Select final feature columns and drop incomplete rows."""
-    print("\n🏁 Preparing final feature set...")
+    print("\nPreparing final feature set...")
     
     feature_cols = [
-        # Time features
         'hour', 'day_of_week', 'day', 'month', 'is_weekend',
         'hour_sin', 'hour_cos',
-        # Weather features
         'temp', 'humidity', 'pressure', 'wind_speed', 'clouds',
-        # Pollutant values
         'pm2_5', 'pm10', 'no2', 'o3', 'co', 'so2',
-        # Lag features
         'aqi_lag_1h', 'aqi_lag_3h', 'aqi_lag_6h', 'aqi_lag_12h', 'aqi_lag_24h',
         'pm25_lag_1h', 'pm25_lag_24h',
-        # Rolling features
         'aqi_rolling_3h', 'aqi_rolling_6h', 'aqi_rolling_12h', 'aqi_rolling_24h',
         'aqi_std_24h', 'pm25_rolling_6h', 'pm25_rolling_24h',
-        # Change features
         'aqi_change_1h', 'aqi_change_3h', 'aqi_change_6h', 'aqi_change_24h',
         'aqi_pct_change_1h', 'aqi_pct_change_24h'
     ]
@@ -188,24 +182,24 @@ def prepare_final_features(df):
     df_final = df_final.dropna()
     final_count = len(df_final)
     
-    print(f"   Rows: {initial_count} → {final_count}")
+    print(f"   Rows: {initial_count} -> {final_count}")
     print(f"   Features: {len(available_features)}, Targets: {len(available_targets)}")
     
     if final_count == 0:
-        print("   ⚠️ No complete records. Need more historical data.")
+        print("   Warning: No complete records. Need more historical data.")
     
     return df_final, available_features, available_targets
 
 
 def save_features_to_mongodb(df, features, targets):
     """Save processed features to MongoDB feature store."""
-    print("\n💾 Saving features to MongoDB...")
+    print("\nSaving features to MongoDB...")
     
     db = Database()
     records = df.to_dict('records')
     
     if len(records) == 0:
-        print("   ⚠️ No records to save.")
+        print("   No records to save.")
         return
     
     db.features.delete_many({})
@@ -218,9 +212,8 @@ def save_features_to_mongodb(df, features, targets):
         db.features.insert_many(batch)
         saved_count += len(batch)
     
-    print(f"✅ Saved {saved_count} feature records to MongoDB")
+    print(f"Saved {saved_count} feature records to MongoDB")
     
-    # Save feature metadata
     feature_info = {
         "feature_names": features,
         "target_names": targets,
@@ -235,7 +228,7 @@ def save_features_to_mongodb(df, features, targets):
 
 if __name__ == "__main__":
     print("\n" + "=" * 60)
-    print("🔧 FEATURE ENGINEERING PIPELINE")
+    print("FEATURE ENGINEERING PIPELINE")
     print("=" * 60)
     
     df = load_raw_data()
@@ -252,5 +245,5 @@ if __name__ == "__main__":
     df_final, feature_names, target_names = prepare_final_features(df)
     save_features_to_mongodb(df_final, feature_names, target_names)
     
-    print(f"\n📊 Summary: {len(feature_names)} features, {len(target_names)} targets, {len(df_final)} records")
-    print("✅ Feature engineering complete!")
+    print(f"\nSummary: {len(feature_names)} features, {len(target_names)} targets, {len(df_final)} records")
+    print("Feature engineering complete!")

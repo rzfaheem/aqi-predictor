@@ -24,7 +24,7 @@ class DataFetcher:
         self.pollution_url = "https://api.openweathermap.org/data/2.5/air_pollution"
         self.pollution_history_url = "https://api.openweathermap.org/data/2.5/air_pollution/history"
         
-        print(f"📍 DataFetcher initialized for {self.city}")
+        print(f"DataFetcher initialized for {self.city}")
     
     def fetch_current_weather(self) -> dict:
         """Fetch current weather data (temperature, humidity, wind, etc.)."""
@@ -54,14 +54,14 @@ class DataFetcher:
                     "timestamp": datetime.utcnow()
                 }
                 
-                print(f"✅ Weather: {weather_data['temperature']}°C, {weather_data['humidity']}% humidity")
+                print(f"Weather fetched: {weather_data['temperature']}C, {weather_data['humidity']}% humidity")
                 return weather_data
             else:
-                print(f"❌ Weather API failed: {response.status_code}")
+                print(f"Weather API failed: {response.status_code}")
                 return None
                 
         except Exception as e:
-            print(f"❌ Error fetching weather: {e}")
+            print(f"Error fetching weather: {e}")
             return None
     
     def fetch_current_pollution(self) -> dict:
@@ -95,25 +95,25 @@ class DataFetcher:
                 aqi_mapping = {1: 25, 2: 75, 3: 125, 4: 175, 5: 250}
                 pollution_data["aqi_standard"] = aqi_mapping.get(pollution_data["aqi"], 100)
                 
-                print(f"✅ Pollution: AQI={pollution_data['aqi']}, PM2.5={pollution_data['pm2_5']} μg/m³")
+                print(f"Pollution fetched: AQI={pollution_data['aqi']}, PM2.5={pollution_data['pm2_5']}")
                 return pollution_data
             else:
-                print(f"❌ Pollution API failed: {response.status_code}")
+                print(f"Pollution API failed: {response.status_code}")
                 return None
                 
         except Exception as e:
-            print(f"❌ Error fetching pollution: {e}")
+            print(f"Error fetching pollution: {e}")
             return None
     
     def fetch_current_data(self) -> dict:
         """Fetch combined weather and pollution data."""
-        print(f"\n📊 Fetching data for {self.city}...")
+        print(f"\nFetching data for {self.city}...")
         
         weather = self.fetch_current_weather()
         pollution = self.fetch_current_pollution()
         
         if weather is None or pollution is None:
-            print("❌ Failed to fetch complete data")
+            print("Failed to fetch complete data")
             return None
         
         combined_data = {
@@ -123,12 +123,12 @@ class DataFetcher:
             "pollution": pollution
         }
         
-        print("✅ All data fetched successfully!")
+        print("All data fetched successfully!")
         return combined_data
     
     def fetch_historical_pollution(self, days_back: int = 30) -> list:
         """Fetch historical pollution data for model training."""
-        print(f"📜 Fetching historical data for past {days_back} days...")
+        print(f"Fetching historical data for past {days_back} days...")
         
         end_datetime = datetime.utcnow()
         start_datetime = end_datetime - timedelta(days=days_back)
@@ -171,14 +171,14 @@ class DataFetcher:
                     
                     historical_data.append(data_point)
                 
-                print(f"✅ Fetched {len(historical_data)} historical data points")
+                print(f"Fetched {len(historical_data)} historical data points")
                 return historical_data
             else:
-                print(f"❌ Historical API failed: {response.status_code}")
+                print(f"Historical API failed: {response.status_code}")
                 return []
                 
         except Exception as e:
-            print(f"❌ Error fetching historical data: {e}")
+            print(f"Error fetching historical data: {e}")
             return []
     
     def test_api_connection(self) -> bool:
@@ -188,17 +188,17 @@ class DataFetcher:
             response = requests.get(self.weather_url, params=params)
             
             if response.status_code == 200:
-                print("✅ API connection successful!")
+                print("API connection successful!")
                 return True
             elif response.status_code == 401:
-                print("❌ Invalid API key!")
+                print("Invalid API key!")
                 return False
             else:
-                print(f"❌ API returned status code: {response.status_code}")
+                print(f"API returned status code: {response.status_code}")
                 return False
                 
         except Exception as e:
-            print(f"❌ Connection error: {e}")
+            print(f"Connection error: {e}")
             return False
 
 
@@ -235,7 +235,7 @@ if __name__ == "__main__":
         
         result = db.save_raw_data(record)
         count = db.raw_data.count_documents({})
-        print(f"📊 Total records: {count}")
+        print(f"Total records: {count}")
     else:
-        print("❌ Failed to fetch data")
+        print("Failed to fetch data")
         exit(1)

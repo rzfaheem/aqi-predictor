@@ -34,23 +34,23 @@ from src.database import Database
 
 def load_features():
     """Load features from MongoDB feature store."""
-    print("📊 Loading features from MongoDB...")
+    print("Loading features from MongoDB...")
     
     db = Database()
     features = db.get_features()
     
     if not features:
-        print("❌ No features found!")
+        print("No features found!")
         return None
     
     df = pd.DataFrame(features)
-    print(f"✅ Loaded {len(df)} feature records")
+    print(f"Loaded {len(df)} feature records")
     return df
 
 
 def prepare_data(df, target_cols=['target_24h', 'target_48h', 'target_72h']):
     """Prepare X (features) and y (multi-output targets) for training."""
-    print(f"\n🎯 Preparing data for targets: {target_cols}")
+    print(f"\nPreparing data for targets: {target_cols}")
     
     exclude_cols = ['_id', 'timestamp', 'saved_at', 
                     'target_1h', 'target_6h', 'target_12h', 
@@ -73,7 +73,7 @@ def prepare_data(df, target_cols=['target_24h', 'target_48h', 'target_72h']):
 
 def split_data(X, y, test_size=0.2):
     """Split data using TimeSeriesSplit (avoids data leakage in time series)."""
-    print(f"\n✂️ Splitting data with TimeSeriesSplit...")
+    print(f"\nSplitting data with TimeSeriesSplit...")
     
     n_splits = 5
     tscv = TimeSeriesSplit(n_splits=n_splits)
@@ -95,7 +95,7 @@ def split_data(X, y, test_size=0.2):
 
 def scale_features(X_train, X_test):
     """Standardize features (mean=0, std=1). Fitted on training data only."""
-    print("\n📏 Scaling features...")
+    print("\nScaling features...")
     
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
@@ -108,8 +108,8 @@ def scale_features(X_train, X_test):
 
 
 def evaluate_model(y_true, y_pred, model_name, target_names=['24h', '48h', '72h']):
-    """Calculate RMSE, MAE, and R² for each prediction horizon."""
-    print(f"\n📊 {model_name} Results:")
+    """Calculate RMSE, MAE, and R2 for each prediction horizon."""
+    print(f"\n{model_name} Results:")
     
     metrics_per_target = {}
     for i, name in enumerate(target_names):
@@ -118,14 +118,14 @@ def evaluate_model(y_true, y_pred, model_name, target_names=['24h', '48h', '72h'
         r2 = r2_score(y_true.iloc[:, i], y_pred[:, i])
         
         metrics_per_target[name] = {'rmse': rmse, 'mae': mae, 'r2': r2}
-        print(f"   {name}: RMSE={rmse:.2f}, MAE={mae:.2f}, R²={r2:.4f}")
+        print(f"   {name}: RMSE={rmse:.2f}, MAE={mae:.2f}, R2={r2:.4f}")
     
     avg_rmse = np.mean([m['rmse'] for m in metrics_per_target.values()])
     avg_mae = np.mean([m['mae'] for m in metrics_per_target.values()])
     avg_r2 = np.mean([m['r2'] for m in metrics_per_target.values()])
     
-    print(f"   ─────────────────────────────────")
-    print(f"   AVERAGE: RMSE={avg_rmse:.2f}, MAE={avg_mae:.2f}, R²={avg_r2:.4f}")
+    print(f"   ---------------------------------")
+    print(f"   AVERAGE: RMSE={avg_rmse:.2f}, MAE={avg_mae:.2f}, R2={avg_r2:.4f}")
     
     return {
         'rmse': avg_rmse, 
@@ -138,7 +138,7 @@ def evaluate_model(y_true, y_pred, model_name, target_names=['24h', '48h', '72h'
 def train_ridge(X_train, X_test, y_train, y_test):
     """Train Ridge Regression (multi-output, native support)."""
     print("\n" + "=" * 40)
-    print("🔵 Training Ridge Regression...")
+    print("Training Ridge Regression...")
     print("=" * 40)
     
     model = Ridge(alpha=1.0)
@@ -153,7 +153,7 @@ def train_ridge(X_train, X_test, y_train, y_test):
 def train_random_forest(X_train, X_test, y_train, y_test):
     """Train Random Forest (multi-output, native support)."""
     print("\n" + "=" * 40)
-    print("🌲 Training Random Forest...")
+    print("Training Random Forest...")
     print("=" * 40)
     
     model = RandomForestRegressor(
@@ -177,7 +177,7 @@ def train_xgboost(X_train, X_test, y_train, y_test):
         return None, None, None
     
     print("\n" + "=" * 40)
-    print("🚀 Training XGBoost...")
+    print("Training XGBoost...")
     print("=" * 40)
     
     base_model = XGBRegressor(
@@ -199,16 +199,16 @@ def train_xgboost(X_train, X_test, y_train, y_test):
 def select_best_model(results):
     """Select best model by lowest average RMSE."""
     print("\n" + "=" * 50)
-    print("🏆 MODEL COMPARISON")
+    print("MODEL COMPARISON")
     print("=" * 50)
     
     valid_results = {k: v for k, v in results.items() if v['metrics'] is not None}
     
     if not valid_results:
-        print("❌ No valid models!")
+        print("No valid models!")
         return None, None
     
-    print(f"\n{'Model':<20} {'RMSE':<10} {'MAE':<10} {'R²':<10}")
+    print(f"\n{'Model':<20} {'RMSE':<10} {'MAE':<10} {'R2':<10}")
     print("-" * 50)
     
     for name, data in valid_results.items():
@@ -218,13 +218,13 @@ def select_best_model(results):
     best_name = min(valid_results.keys(), key=lambda x: valid_results[x]['metrics']['rmse'])
     best_data = valid_results[best_name]
     
-    print(f"\n🥇 Best Model: {best_name} (RMSE: {best_data['metrics']['rmse']:.2f})")
+    print(f"\nBest Model: {best_name} (RMSE: {best_data['metrics']['rmse']:.2f})")
     return best_name, best_data
 
 
 def save_model(model, scaler, feature_names, target_name, metrics, model_name):
     """Save best model locally and to MongoDB."""
-    print("\n💾 Saving model...")
+    print("\nSaving model...")
     
     os.makedirs("models", exist_ok=True)
     model_path = f"models/best_model_{target_name}.pkl"
@@ -241,7 +241,7 @@ def save_model(model, scaler, feature_names, target_name, metrics, model_name):
     
     with open(model_path, 'wb') as f:
         pickle.dump(model_dict, f)
-    print(f"   ✅ Model saved to: {model_path}")
+    print(f"   Model saved to: {model_path}")
     
     # Save to MongoDB for cloud deployment
     db = Database()
@@ -264,7 +264,7 @@ def save_model(model, scaler, feature_names, target_name, metrics, model_name):
 
 if __name__ == "__main__":
     print("\n" + "=" * 60)
-    print("🤖 MODEL TRAINING PIPELINE")
+    print("MODEL TRAINING PIPELINE")
     print("=" * 60)
     
     df = load_features()
@@ -300,11 +300,11 @@ if __name__ == "__main__":
     else:
         save_model(best_data['model'], None, feature_names, model_filename, best_data['metrics'], best_name)
     
-    print(f"\n🏆 Best Model: {best_name}")
-    print(f"📈 Avg RMSE: {best_data['metrics']['rmse']:.2f}, Avg R²: {best_data['metrics']['r2']:.4f}")
+    print(f"\nBest Model: {best_name}")
+    print(f"Avg RMSE: {best_data['metrics']['rmse']:.2f}, Avg R2: {best_data['metrics']['r2']:.4f}")
     
     if 'per_horizon' in best_data['metrics']:
         for horizon, m in best_data['metrics']['per_horizon'].items():
-            print(f"   {horizon}: RMSE={m['rmse']:.2f}, R²={m['r2']:.4f}")
+            print(f"   {horizon}: RMSE={m['rmse']:.2f}, R2={m['r2']:.4f}")
     
-    print("\n✅ Training complete!")
+    print("\nTraining complete!")

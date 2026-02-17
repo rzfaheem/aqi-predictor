@@ -25,7 +25,7 @@ def backfill_historical_data(days_back: int = 30):
     print("=" * 60)
     print("HISTORICAL DATA BACKFILL")
     print("=" * 60)
-    print(f"\n📅 Fetching data for the past {days_back} days...")
+    print(f"\nFetching data for the past {days_back} days...")
     
     fetcher = DataFetcher()
     db = Database()
@@ -33,7 +33,7 @@ def backfill_historical_data(days_back: int = 30):
     historical_data = fetcher.fetch_historical_pollution(days_back=days_back)
     
     if not historical_data:
-        print("❌ No historical data retrieved!")
+        print("No historical data retrieved!")
         return 0
     
     print(f"   Retrieved {len(historical_data)} data points")
@@ -52,15 +52,15 @@ def backfill_historical_data(days_back: int = 30):
                 print(f"   Saved {saved_count} records...")
                 
         except Exception as e:
-            print(f"   ⚠️ Error saving record: {e}")
+            print(f"   Warning: Error saving record: {e}")
     
-    print(f"\n✅ Saved {saved_count} records")
+    print(f"\nSaved {saved_count} records")
     
     if historical_data:
-        print(f"📅 Range: {historical_data[0]['timestamp'].date()} to {historical_data[-1]['timestamp'].date()}")
+        print(f"Range: {historical_data[0]['timestamp'].date()} to {historical_data[-1]['timestamp'].date()}")
     
     stats = db.get_collection_stats()
-    print(f"📊 Total records in database: {stats['raw_data_count']}")
+    print(f"Total records in database: {stats['raw_data_count']}")
     
     return saved_count
 
@@ -75,10 +75,10 @@ def show_sample_data():
         return
     
     for i, sample in enumerate(samples, 1):
-        print(f"\n📌 Record {i}:")
+        print(f"\nRecord {i}:")
         print(f"   Timestamp: {sample.get('timestamp', 'N/A')}")
         print(f"   AQI: {sample.get('aqi_standard', 'N/A')}")
-        print(f"   PM2.5: {sample.get('pm2_5', 'N/A')} μg/m³")
+        print(f"   PM2.5: {sample.get('pm2_5', 'N/A')} ug/m3")
 
 
 if __name__ == "__main__":
@@ -95,4 +95,4 @@ if __name__ == "__main__":
     if count > 0:
         show_sample_data()
     
-    print("\n✅ Backfill complete!")
+    print("\nBackfill complete!")

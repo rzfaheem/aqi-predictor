@@ -19,23 +19,23 @@ sns.set_palette("husl")
 
 def load_data_from_mongodb():
     """Load historical data from MongoDB into a DataFrame."""
-    print("📊 Loading data from MongoDB...")
+    print("Loading data from MongoDB...")
     
     db = Database()
     raw_data = db.get_raw_data()
     
     if not raw_data:
-        print("❌ No data found!")
+        print("No data found!")
         return None
     
     df = pd.DataFrame(raw_data)
-    print(f"✅ Loaded {len(df)} records")
+    print(f"Loaded {len(df)} records")
     return df
 
 
 def clean_data(df):
     """Clean data: parse timestamps, remove duplicates, sort chronologically."""
-    print("\n🧹 Cleaning data...")
+    print("\nCleaning data...")
     
     missing = df.isnull().sum()
     missing_cols = missing[missing > 0]
@@ -57,14 +57,14 @@ def clean_data(df):
         print(f"   Removed {duplicates} duplicates")
     
     df = df.sort_values('timestamp').reset_index(drop=True)
-    print(f"✅ {len(df)} records ready for analysis")
+    print(f"{len(df)} records ready for analysis")
     return df
 
 
 def generate_summary_statistics(df):
     """Print summary statistics for pollution metrics."""
     print("\n" + "=" * 60)
-    print("📊 SUMMARY STATISTICS")
+    print("SUMMARY STATISTICS")
     print("=" * 60)
     
     numeric_cols = ['aqi', 'aqi_standard', 'pm2_5', 'pm10', 'no2', 'o3', 'co', 'so2']
@@ -78,13 +78,13 @@ def generate_summary_statistics(df):
             print(f"\n   Average AQI: {df['aqi_standard'].mean():.1f}")
             print(f"   AQI Range: {df['aqi_standard'].min():.0f} - {df['aqi_standard'].max():.0f}")
         if 'pm2_5' in df.columns:
-            print(f"   Average PM2.5: {df['pm2_5'].mean():.2f} μg/m³")
+            print(f"   Average PM2.5: {df['pm2_5'].mean():.2f} ug/m3")
 
 
 def create_visualizations(df, output_dir="notebooks/eda_charts"):
     """Generate and save EDA charts (time series, distributions, correlations)."""
     print("\n" + "=" * 60)
-    print("📈 CREATING VISUALIZATIONS")
+    print("CREATING VISUALIZATIONS")
     print("=" * 60)
     
     os.makedirs(output_dir, exist_ok=True)
@@ -174,28 +174,28 @@ def create_visualizations(df, output_dir="notebooks/eda_charts"):
     scatter = ax.scatter(df['pm2_5'], df['pm10'], c=df['aqi_standard'], 
                         cmap='RdYlGn_r', alpha=0.6, s=50)
     plt.colorbar(scatter, label='AQI')
-    ax.set_xlabel('PM2.5 (μg/m³)', fontsize=12)
-    ax.set_ylabel('PM10 (μg/m³)', fontsize=12)
+    ax.set_xlabel('PM2.5 (ug/m3)', fontsize=12)
+    ax.set_ylabel('PM10 (ug/m3)', fontsize=12)
     ax.set_title('PM2.5 vs PM10 (colored by AQI)', fontsize=14, fontweight='bold')
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, '6_pm25_vs_pm10.png'), dpi=150, bbox_inches='tight')
     plt.close()
     
-    print(f"✅ All charts saved to: {output_dir}/")
+    print(f"All charts saved to: {output_dir}/")
     return output_dir
 
 
 def generate_eda_report(df, chart_dir):
     """Print key findings from the EDA."""
     print("\n" + "=" * 60)
-    print("📝 EDA REPORT")
+    print("EDA REPORT")
     print("=" * 60)
     
     if 'timestamp' in df.columns:
-        print(f"\n📅 Period: {df['timestamp'].min().date()} to {df['timestamp'].max().date()}")
+        print(f"\nPeriod: {df['timestamp'].min().date()} to {df['timestamp'].max().date()}")
         print(f"   Total records: {len(df)} (hourly)")
     
-    print(f"\n🌫️ AQI Statistics:")
+    print(f"\nAQI Statistics:")
     print(f"   Mean: {df['aqi_standard'].mean():.1f}, Median: {df['aqi_standard'].median():.1f}")
     print(f"   Range: {df['aqi_standard'].min():.0f} - {df['aqi_standard'].max():.0f}")
     
@@ -206,7 +206,7 @@ def generate_eda_report(df, chart_dir):
     unhealthy = len(df[(df['aqi_standard'] > 150) & (df['aqi_standard'] <= 200)])
     very_unhealthy = len(df[df['aqi_standard'] > 200])
     
-    print(f"\n📊 AQI Level Distribution:")
+    print(f"\nAQI Level Distribution:")
     print(f"   Good (0-50): {good} ({100*good/len(df):.1f}%)")
     print(f"   Moderate (51-100): {moderate} ({100*moderate/len(df):.1f}%)")
     print(f"   Unhealthy for Sensitive (101-150): {sensitive} ({100*sensitive/len(df):.1f}%)")
@@ -215,18 +215,18 @@ def generate_eda_report(df, chart_dir):
     
     if 'hour' in df.columns:
         hourly_avg = df.groupby('hour')['aqi_standard'].mean()
-        print(f"\n⏰ Worst hour: {hourly_avg.idxmax()}:00 (Avg: {hourly_avg.max():.1f})")
+        print(f"\nWorst hour: {hourly_avg.idxmax()}:00 (Avg: {hourly_avg.max():.1f})")
         print(f"   Best hour: {hourly_avg.idxmin()}:00 (Avg: {hourly_avg.min():.1f})")
     
     if 'is_weekend' in df.columns:
         weekday_avg = df[df['is_weekend'] == 0]['aqi_standard'].mean()
         weekend_avg = df[df['is_weekend'] == 1]['aqi_standard'].mean()
-        print(f"\n📆 Weekday Avg: {weekday_avg:.1f}, Weekend Avg: {weekend_avg:.1f}")
+        print(f"\nWeekday Avg: {weekday_avg:.1f}, Weekend Avg: {weekend_avg:.1f}")
 
 
 if __name__ == "__main__":
     print("\n" + "=" * 60)
-    print("🔬 EXPLORATORY DATA ANALYSIS")
+    print("EXPLORATORY DATA ANALYSIS")
     print("=" * 60)
     
     df = load_data_from_mongodb()
@@ -238,4 +238,4 @@ if __name__ == "__main__":
     chart_dir = create_visualizations(df)
     generate_eda_report(df, chart_dir)
     
-    print("\n✅ EDA Complete!")
+    print("\nEDA Complete!")

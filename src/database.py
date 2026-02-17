@@ -37,7 +37,7 @@ class Database:
         self.features = self.db[config.COLLECTION_FEATURES]
         self.models = self.db[config.COLLECTION_MODELS]
         
-        print(f"✅ Connected to MongoDB database: {config.MONGODB_DATABASE_NAME}")
+        print(f"Connected to MongoDB: {config.MONGODB_DATABASE_NAME}")
     
     # --- Raw Data Operations ---
     
@@ -45,7 +45,7 @@ class Database:
         """Save raw weather/pollution data to database."""
         data["saved_at"] = datetime.utcnow()
         result = self.raw_data.insert_one(data)
-        print(f"✅ Saved raw data with ID: {result.inserted_id}")
+        print(f"Saved raw data with ID: {result.inserted_id}")
         return str(result.inserted_id)
     
     def get_raw_data(self, start_date: datetime = None, end_date: datetime = None) -> list:
@@ -68,7 +68,7 @@ class Database:
         """Save processed features to the feature store."""
         features["saved_at"] = datetime.utcnow()
         result = self.features.insert_one(features)
-        print(f"✅ Saved features with ID: {result.inserted_id}")
+        print(f"Saved features with ID: {result.inserted_id}")
         return str(result.inserted_id)
     
     def save_features_batch(self, features_list: list) -> int:
@@ -81,7 +81,7 @@ class Database:
         
         result = self.features.insert_many(features_list)
         count = len(result.inserted_ids)
-        print(f"✅ Saved {count} feature records")
+        print(f"Saved {count} feature records")
         return count
     
     def get_features(self, start_date: datetime = None, end_date: datetime = None) -> list:
@@ -109,7 +109,7 @@ class Database:
         """Save trained model metadata to the registry."""
         model_info["saved_at"] = datetime.utcnow()
         result = self.models.insert_one(model_info)
-        print(f"✅ Saved model info with ID: {result.inserted_id}")
+        print(f"Saved model info with ID: {result.inserted_id}")
         return str(result.inserted_id)
     
     def get_best_model(self) -> dict:
@@ -139,7 +139,7 @@ class Database:
             "saved_at": datetime.utcnow()
         }
         result = model_storage.insert_one(doc)
-        print(f"✅ Saved model binary to MongoDB (ID: {result.inserted_id})")
+        print(f"Saved model binary to MongoDB (ID: {result.inserted_id})")
         return str(result.inserted_id)
     
     def load_model_binary(self) -> dict:
@@ -162,10 +162,10 @@ class Database:
         """Test database connectivity."""
         try:
             self.client.admin.command('ping')
-            print("✅ MongoDB connection is working!")
+            print("MongoDB connection is working!")
             return True
         except Exception as e:
-            print(f"❌ MongoDB connection failed: {e}")
+            print(f"MongoDB connection failed: {e}")
             return False
     
     def get_collection_stats(self) -> dict:
@@ -185,11 +185,11 @@ class Database:
         }
         
         if collection_name not in collection_map:
-            print(f"❌ Unknown collection: {collection_name}")
+            print(f"Unknown collection: {collection_name}")
             return 0
         
         result = collection_map[collection_name].delete_many({})
-        print(f"🗑️ Deleted {result.deleted_count} documents from {collection_name}")
+        print(f"Deleted {result.deleted_count} documents from {collection_name}")
         return result.deleted_count
 
 
@@ -198,7 +198,7 @@ if __name__ == "__main__":
     db.test_connection()
     
     stats = db.get_collection_stats()
-    print(f"\n📊 Collection Statistics:")
+    print(f"\nCollection Statistics:")
     print(f"   Raw data: {stats['raw_data_count']}")
     print(f"   Features: {stats['features_count']}")
     print(f"   Models: {stats['models_count']}")
