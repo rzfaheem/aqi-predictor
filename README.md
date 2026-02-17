@@ -116,4 +116,4 @@ The dashboard is deployed on **Streamlit Community Cloud** and updates automatic
 
 ## License
 
-This project was developed as part of an internship at Bytewise Limited.
+This project was developed as part of an internship at 10Pearls.
