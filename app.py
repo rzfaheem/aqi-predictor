@@ -1,21 +1,5 @@
 """
-AQI Predictor Dashboard
-=======================
-
-WHAT THIS FILE DOES:
-- Creates a web-based dashboard using Streamlit
-- Shows current AQI for Faisalabad
-- Displays 3-day AQI forecast
-- Shows visualizations and alerts
-- Explains predictions using feature importance
-
-TO RUN:
-    streamlit run app.py
-
-WHAT IS STREAMLIT?
-- A Python library for creating web apps
-- Write Python, get a beautiful web interface
-- No HTML/CSS/JavaScript needed!
+AQI Predictor Dashboard - Streamlit web app for real-time AQI monitoring and 3-day forecast.
 """
 
 import streamlit as st
@@ -28,16 +12,12 @@ from datetime import datetime, timedelta
 import plotly.express as px
 import plotly.graph_objects as go
 
-# Add src to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from src.data_fetcher import DataFetcher
 from src.database import Database
 
-# ========================================
-# PAGE CONFIGURATION
-# ========================================
-
+# Page config
 st.set_page_config(
     page_title="🌫️ Faisalabad AQI Predictor",
     page_icon="🌫️",
@@ -45,7 +25,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for styling
 st.markdown("""
 <style>
     .main-header {
@@ -72,12 +51,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ========================================
-# HELPER FUNCTIONS
-# ========================================
-
 def get_aqi_category(aqi):
-    """Get AQI category and color based on value."""
+    """Get AQI category, emoji, color, and health message."""
     if aqi <= 50:
         return "Good", "🟢", "#00c853", "Air quality is satisfactory"
     elif aqi <= 100:
@@ -93,22 +68,7 @@ def get_aqi_category(aqi):
 
 
 def pm25_to_aqi(pm25):
-    """
-    Convert PM2.5 concentration (μg/m³) to AQI value.
-    
-    Uses EPA AQI breakpoints for PM2.5.
-    This allows us to train on continuous PM2.5 values but display
-    the standard AQI scale that users understand.
-    
-    PM2.5 Breakpoints (μg/m³) → AQI:
-    0-12.0    → 0-50     (Good)
-    12.1-35.4 → 51-100   (Moderate)
-    35.5-55.4 → 101-150  (Unhealthy for Sensitive)
-    55.5-150.4 → 151-200 (Unhealthy)
-    150.5-250.4 → 201-300 (Very Unhealthy)
-    250.5-500.4 → 301-500 (Hazardous)
-    """
-    # EPA PM2.5 to AQI breakpoints
+    """Convert PM2.5 concentration (μg/m³) to AQI using EPA breakpoints."""
     breakpoints = [
         (0, 12.0, 0, 50),
         (12.1, 35.4, 51, 100),
@@ -118,50 +78,42 @@ def pm25_to_aqi(pm25):
         (250.5, 500.4, 301, 500),
     ]
     
-    # Handle edge cases
     if pm25 < 0:
         return 0
     if pm25 > 500:
         return 500
     
-    # Find the right breakpoint and calculate AQI
     for pm_low, pm_high, aqi_low, aqi_high in breakpoints:
         if pm_low <= pm25 <= pm_high:
-            # Linear interpolation
             aqi = ((aqi_high - aqi_low) / (pm_high - pm_low)) * (pm25 - pm_low) + aqi_low
             return round(aqi)
     
-    # If pm25 is above all breakpoints
     return 500
 
 
 @st.cache_resource
 def load_model():
-    """Load the trained MULTI-OUTPUT model from file or MongoDB (cached for performance)."""
+    """Load trained model from local file or MongoDB."""
     import pickle
     from src.database import Database
     
-    # Try local file first (for local development)
     model_path = "models/best_model_multi_output_24h_48h_72h.pkl"
     if os.path.exists(model_path):
         with open(model_path, 'rb') as f:
             model_data = pickle.load(f)
         return model_data
     
-    # Fallback to old single-output model
     old_model_path = "models/best_model_target_24h.pkl"
     if os.path.exists(old_model_path):
         with open(old_model_path, 'rb') as f:
             model_data = pickle.load(f)
         return model_data
     
-    # Load from MongoDB (for cloud deployment like Streamlit Cloud)
     try:
         db = Database()
         model_doc = db.load_model_binary()
         if model_doc:
             model_data = pickle.loads(model_doc["model_binary"])
-            print("✅ Loaded model from MongoDB")
             return model_data
     except Exception as e:
         print(f"⚠️ Could not load from MongoDB: {e}")
@@ -169,32 +121,27 @@ def load_model():
     return None
 
 
-@st.cache_data(ttl=3600)  # Cache for 1 hour
+@st.cache_data(ttl=3600)
 def fetch_current_data():
-    """Fetch current weather and pollution data."""
+    """Fetch current weather and pollution data (cached 1 hour)."""
     try:
         fetcher = DataFetcher()
-        data = fetcher.fetch_current_data()
-        return data
+        return fetcher.fetch_current_data()
     except Exception as e:
         st.error(f"Error fetching data: {e}")
         return None
 
 
 def get_feature_for_prediction(current_data, db):
-    """Prepare features for prediction from current data."""
-    # Get recent data from database for lag/rolling features
+    """Prepare features for prediction from current data and recent history."""
     recent_features = db.get_latest_features(n=24)
     
     if not recent_features:
         return None
     
     df = pd.DataFrame(recent_features)
-    
-    # Get the most recent record as base
     latest = df.iloc[0].to_dict()
     
-    # Update with current data
     if current_data and 'pollution' in current_data:
         latest['aqi_standard'] = current_data['pollution'].get('aqi_standard', latest.get('aqi_standard', 100))
         latest['pm2_5'] = current_data['pollution'].get('pm2_5', latest.get('pm2_5', 50))
@@ -204,12 +151,7 @@ def get_feature_for_prediction(current_data, db):
 
 
 def make_prediction(model_data, features):
-    """
-    Make PM2.5 predictions using the MULTI-OUTPUT model.
-    
-    The model predicts PM2.5 for 24h, 48h, and 72h at once!
-    Returns: (pm25_24h, pm25_48h, pm25_72h, aqi_24h, aqi_48h, aqi_72h)
-    """
+    """Make multi-horizon PM2.5 predictions and convert to AQI."""
     if model_data is None or features is None:
         return None, None, None, None, None, None
     
@@ -217,38 +159,29 @@ def make_prediction(model_data, features):
     feature_names = model_data['feature_names']
     scaler = model_data.get('scaler')
     
-    # Prepare feature vector
     X = pd.DataFrame([features])
     
-    # Select only the features used by model
     available_features = [f for f in feature_names if f in X.columns]
     X = X[available_features]
     
-    # Fill any missing columns with 0
     for f in feature_names:
         if f not in X.columns:
             X[f] = 0
     
     X = X[feature_names]
     
-    # Scale if needed
     if scaler is not None:
         X = scaler.transform(X)
     
-    # Make prediction - multi-output returns 3 values!
     predictions = model.predict(X)[0]
     
-    # Handle both single-output (old) and multi-output (new) models
     if hasattr(predictions, '__len__') and len(predictions) == 3:
-        # Multi-output model (new)
         pm25_24h, pm25_48h, pm25_72h = predictions
     else:
-        # Single-output model (fallback for old model)
         pm25_24h = predictions
-        pm25_48h = pm25_24h * 1.05  # Estimate
-        pm25_72h = pm25_24h * 1.10  # Estimate
+        pm25_48h = pm25_24h * 1.05
+        pm25_72h = pm25_24h * 1.10
     
-    # Convert PM2.5 to AQI for each horizon
     aqi_24h = pm25_to_aqi(pm25_24h)
     aqi_48h = pm25_to_aqi(pm25_48h)
     aqi_72h = pm25_to_aqi(pm25_72h)
@@ -256,16 +189,10 @@ def make_prediction(model_data, features):
     return pm25_24h, pm25_48h, pm25_72h, aqi_24h, aqi_48h, aqi_72h
 
 
-# ========================================
-# MAIN APP
-# ========================================
-
 def main():
-    # Header
     st.markdown('<h1 class="main-header">🌫️ Faisalabad Air Quality Predictor</h1>', unsafe_allow_html=True)
     st.markdown('<p style="text-align: center; font-size: 1.2rem; color: #666;">Real-time AQI monitoring and 3-day forecast</p>', unsafe_allow_html=True)
     
-    # Refresh button
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         if st.button("🔄 Refresh Data", use_container_width=True):
@@ -274,28 +201,21 @@ def main():
     
     st.markdown("---")
     
-    # Fetch current data
     with st.spinner("Fetching latest air quality data..."):
         current_data = fetch_current_data()
     
-    # ========================================
-    # CURRENT CONDITIONS
-    # ========================================
-    
+    # Current Conditions
     st.header("📊 Current Conditions")
     
     if current_data:
         pollution = current_data.get('pollution', {})
         weather = current_data.get('weather', {})
         
-        # Use PM2.5 → AQI conversion for consistent display (matches forecast)
         current_pm25 = pollution.get('pm2_5', 0)
         current_aqi = pm25_to_aqi(current_pm25)
         category, emoji, color, health_msg = get_aqi_category(current_aqi)
         
-        # Display current AQI prominently
         col1, col2, col3 = st.columns([1, 2, 1])
-        
         with col2:
             st.markdown(f"""
             <div style="background: {color}; padding: 2rem; border-radius: 1rem; text-align: center; color: white;">
@@ -307,7 +227,6 @@ def main():
         
         st.markdown("---")
         
-        # Weather and Pollution Details
         col1, col2 = st.columns(2)
         
         with col1:
@@ -334,38 +253,24 @@ def main():
     
     st.markdown("---")
     
-    # ========================================
-    # 3-DAY FORECAST
-    # ========================================
-    
+    # 3-Day Forecast
     st.header("📈 3-Day AQI Forecast")
     
-    # Load model
     model_data = load_model()
     
     if model_data:
-        # Get database connection for features
         db = Database()
         
-        # Get current PM2.5 for display
         current_pm25 = current_data['pollution']['pm2_5'] if current_data else 100
         current_aqi = pm25_to_aqi(current_pm25)
         
-        # Get features for prediction
         features = get_feature_for_prediction(current_data, db)
-        
-        # Make predictions using the MULTI-OUTPUT model
-        # Returns: pm25_24h, pm25_48h, pm25_72h, aqi_24h, aqi_48h, aqi_72h
         result = make_prediction(model_data, features)
         pm25_24h, pm25_48h, pm25_72h, aqi_24h, aqi_48h, aqi_72h = result
         
-        # Generate forecast data using REAL predictions
         if pm25_24h is not None:
-            # Build forecast with real predictions for each horizon
             now = datetime.now()
             
-            # Calculate intermediate hours by interpolation
-            # Real predictions: 24h, 48h, 72h from multi-output model
             forecast_data = [
                 {'hours': 1, 'pm25': current_pm25 + (pm25_24h - current_pm25) * (1/24), 'type': 'interpolated'},
                 {'hours': 6, 'pm25': current_pm25 + (pm25_24h - current_pm25) * (6/24), 'type': 'interpolated'},
@@ -379,16 +284,13 @@ def main():
             forecast_pm25 = [d['pm25'] for d in forecast_data]
             forecast_values = [pm25_to_aqi(max(0, pm)) for pm in forecast_pm25]
             forecast_types = [d['type'] for d in forecast_data]
-            
         else:
-            # Fallback if prediction fails
             st.warning("⚠️ Model prediction unavailable. Showing estimated values.")
             forecast_hours = [1, 6, 12, 24, 48, 72]
             forecast_values = [current_aqi] * 6
             forecast_pm25 = [current_pm25] * 6
             forecast_types = ['estimated'] * 6
         
-        # Create forecast dataframe
         now = datetime.now()
         forecast_df = pd.DataFrame({
             'Hours Ahead': forecast_hours,
@@ -398,29 +300,24 @@ def main():
             'Prediction Type': forecast_types
         })
         
-        # Forecast Chart
+        # Forecast chart
         fig = go.Figure()
         
-        # Add current AQI point
         fig.add_trace(go.Scatter(
-            x=[now],
-            y=[current_aqi],
+            x=[now], y=[current_aqi],
             mode='markers',
             marker=dict(size=15, color='blue'),
             name='Current AQI'
         ))
         
-        # Add forecast line
         fig.add_trace(go.Scatter(
-            x=forecast_df['Time'],
-            y=forecast_df['Predicted AQI'],
+            x=forecast_df['Time'], y=forecast_df['Predicted AQI'],
             mode='lines+markers',
             line=dict(color='red', width=2),
             marker=dict(size=10),
             name='Predicted AQI'
         ))
         
-        # Add AQI level zones
         fig.add_hrect(y0=0, y1=50, fillcolor="green", opacity=0.1, line_width=0)
         fig.add_hrect(y0=50, y1=100, fillcolor="yellow", opacity=0.1, line_width=0)
         fig.add_hrect(y0=100, y1=150, fillcolor="orange", opacity=0.1, line_width=0)
@@ -437,7 +334,6 @@ def main():
         
         st.plotly_chart(fig, use_container_width=True)
         
-        # Forecast Table
         st.subheader("Forecast Details")
         
         forecast_display = []
@@ -450,72 +346,37 @@ def main():
             })
         
         st.dataframe(pd.DataFrame(forecast_display), use_container_width=True, hide_index=True)
-        
-        # Model info section hidden (metrics will improve with more data)
     else:
         st.warning("⚠️ Model not loaded. Run model training first.")
     
     st.markdown("---")
     
-    # ========================================
-    # HEALTH RECOMMENDATIONS
-    # ========================================
-    
+    # Health Recommendations
     st.header("💡 Health Recommendations")
     
     if current_data:
         current_aqi = current_data['pollution']['aqi_standard']
         
         if current_aqi <= 50:
-            st.success("""
-            ✅ **Air quality is good!**
-            - Great day for outdoor activities
-            - No precautions needed
-            """)
+            st.success("✅ **Air quality is good!** Great day for outdoor activities.")
         elif current_aqi <= 100:
-            st.info("""
-            🟡 **Air quality is moderate**
-            - Unusually sensitive people should consider reducing prolonged outdoor exertion
-            - Most people can enjoy outdoor activities
-            """)
+            st.info("🟡 **Moderate** — Sensitive people should consider reducing prolonged outdoor exertion.")
         elif current_aqi <= 150:
-            st.warning("""
-            🟠 **Unhealthy for Sensitive Groups**
-            - People with respiratory or heart disease, elderly, and children should limit prolonged outdoor exertion
-            - Everyone else can still be active outdoors
-            """)
+            st.warning("🟠 **Unhealthy for Sensitive Groups** — People with respiratory/heart conditions should limit outdoor activity.")
         elif current_aqi <= 200:
-            st.error("""
-            🔴 **Unhealthy**
-            - Everyone should reduce prolonged outdoor exertion
-            - Sensitive groups should avoid outdoor activities
-            - Consider wearing a mask outdoors
-            """)
+            st.error("🔴 **Unhealthy** — Everyone should reduce outdoor exertion. Consider wearing a mask outdoors.")
         else:
-            st.error("""
-            🟣 **Very Unhealthy / Hazardous**
-            - Everyone should avoid outdoor exertion
-            - Stay indoors and keep windows closed
-            - Use air purifiers if available
-            - Wear N95 masks if going outside is necessary
-            """)
+            st.error("🟣 **Very Unhealthy / Hazardous** — Stay indoors. Use air purifiers. Wear N95 masks if going outside.")
     
-    # ========================================
-    # SIDEBAR - ABOUT
-    # ========================================
-    
+    # Sidebar
     with st.sidebar:
         st.header("ℹ️ About")
         st.markdown("""
-        This dashboard shows real-time air quality data and predictions for **Faisalabad, Pakistan**.
+        Real-time air quality monitoring and ML-based predictions for **Faisalabad, Pakistan**.
         
-        **Data Sources:**
-        - Weather: OpenWeather API
-        - Air Quality: OpenWeather API
-        
-        **Model:**
-        - Machine Learning prediction
-        - Updates every hour
+        **Data:** OpenWeather API  
+        **Model:** Multi-output Random Forest  
+        **Updates:** Hourly data collection, daily retraining
         
         **AQI Scale:**
         - 🟢 0-50: Good
@@ -527,9 +388,7 @@ def main():
         """)
         
         st.markdown("---")
-        
         st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        st.caption("Built with ❤️ using Streamlit")
 
 
 if __name__ == "__main__":

@@ -1,17 +1,9 @@
 name: Feature Pipeline (Hourly)
 
-# This workflow runs the feature pipeline every hour
-# It fetches new data from APIs and creates features for MongoDB
-
 on:
   schedule:
-    # Run every hour at minute 0
     - cron: '0 * * * *'
-  
-  # Also allow manual trigger
   workflow_dispatch:
-  
-  # Run on push to main (this helps activate schedules)
   push:
     branches: [ main ]
     paths:
@@ -40,17 +32,11 @@ jobs:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
           PYTHONPATH: ${{ github.workspace }}
-        run: |
-          echo "🕐 Fetching current weather and pollution data..."
-          python src/data_fetcher.py
-          echo "✅ Raw data fetched"
+        run: python src/data_fetcher.py
       
       - name: Run feature engineering
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
           PYTHONPATH: ${{ github.workspace }}
-        run: |
-          echo "⚙️ Creating features from raw data..."
-          python src/feature_engineering.py
-          echo "✅ Features created and saved to MongoDB"
+        run: python src/feature_engineering.py
