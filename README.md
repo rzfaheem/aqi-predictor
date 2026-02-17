@@ -1,4 +1,4 @@
-# AQI Prediction System — Faisalabad, Pakistan
+# AQI Prediction System, Faisalabad, Pakistan
 
 A real-time Air Quality Index prediction system that forecasts PM2.5 concentrations for the next 3 days using machine learning, with an interactive Streamlit dashboard.
 
@@ -8,11 +8,11 @@ This project collects hourly weather and pollution data from the OpenWeather API
 
 ## Features
 
-- **Real-time data collection** — Hourly weather and pollution data via OpenWeather API
-- **Automated pipelines** — GitHub Actions for hourly data collection and daily model retraining
-- **Multi-Output prediction** — Single model predicts 24h, 48h, and 72h simultaneously
-- **Interactive dashboard** — Streamlit app with current conditions, 3-day forecast, and health alerts
-- **Cloud database** — MongoDB Atlas for data storage and model persistence
+- **Real-time data collection**: Hourly weather and pollution data via OpenWeather API
+- **Automated pipelines**: GitHub Actions for hourly data collection and daily model retraining
+- **Multi-Output prediction**: Single model predicts 24h, 48h, and 72h simultaneously
+- **Interactive dashboard**: Streamlit app with current conditions, 3-day forecast, and health alerts
+- **Cloud database**: MongoDB Atlas for data storage and model persistence
 
 ## Tech Stack
 
@@ -50,15 +50,15 @@ This project collects hourly weather and pollution data from the OpenWeather API
 
 ## How It Works
 
-1. **Data Collection** — The feature pipeline runs every hour, fetching temperature, humidity, wind speed, pressure, and pollutant concentrations (PM2.5, PM10, NO2, O3, CO, SO2) from the OpenWeather API.
+1. **Data Collection**: The feature pipeline runs every hour, fetching temperature, humidity, wind speed, pressure, and pollutant concentrations (PM2.5, PM10, NO2, O3, CO, SO2) from the OpenWeather API.
 
-2. **Feature Engineering** — Raw data is transformed into 36 features including time features (hour, day, weekend), lag features (values from 1–24 hours ago), rolling averages (3h, 6h, 12h, 24h windows), and rate-of-change features.
+2. **Feature Engineering**: Raw data is transformed into 36 features including time features (hour, day, weekend), lag features (values from 1–24 hours ago), rolling averages (3h, 6h, 12h, 24h windows), and rate-of-change features.
 
-3. **Model Training** — Three models (Ridge Regression, Random Forest, XGBoost) are compared using TimeSeriesSplit cross-validation. The model with the lowest RMSE is selected automatically.
+3. **Model Training**: Three models (Ridge Regression, Random Forest, XGBoost) are compared using TimeSeriesSplit cross-validation. The model with the lowest RMSE is selected automatically.
 
-4. **Prediction** — The model predicts PM2.5 concentration, which is converted to standard AQI using EPA breakpoint formulas.
+4. **Prediction**: The model predicts PM2.5 concentration, which is converted to standard AQI using EPA breakpoint formulas.
 
-5. **Dashboard** — Current conditions and the 3-day forecast are displayed on a Streamlit web app with color-coded severity levels and health recommendations.
+5. **Dashboard**: Current conditions and the 3-day forecast are displayed on a Streamlit web app with color-coded severity levels and health recommendations.
 
 ## Setup
 
@@ -110,9 +110,9 @@ The dashboard is deployed on **Streamlit Community Cloud** and updates automatic
 
 ## Key Design Decisions
 
-- **PM2.5 over AQI as target** — The OpenWeather API returns only 5 discrete AQI categories (1–5). With 97% of values being the same category in Faisalabad, the model couldn't learn. PM2.5 provides continuous values suitable for regression.
-- **TimeSeriesSplit validation** — Prevents data leakage by always training on past data and testing on future data.
-- **Multi-Output model** — One model predicts all three horizons together, leveraging correlations between them.
+- **PM2.5 over AQI as target**: The OpenWeather API returns only 5 discrete AQI categories (1–5). With 97% of values being the same category in Faisalabad, the model couldn't learn. PM2.5 provides continuous values suitable for regression.
+- **TimeSeriesSplit validation**: Prevents data leakage by always training on past data and testing on future data.
+- **Multi-Output model**: One model predicts all three horizons together, leveraging correlations between them.
 
 ## License
 
