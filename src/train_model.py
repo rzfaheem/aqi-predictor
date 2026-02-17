@@ -72,24 +72,16 @@ def prepare_data(df, target_cols=['target_24h', 'target_48h', 'target_72h']):
 
 
 def split_data(X, y, test_size=0.2):
-    """Split data using TimeSeriesSplit (avoids data leakage in time series)."""
-    print(f"\nSplitting data with TimeSeriesSplit...")
+    """Split data into train/test sets with random sampling."""
+    print(f"\nSplitting data (test_size={test_size})...")
     
-    n_splits = 5
-    tscv = TimeSeriesSplit(n_splits=n_splits)
+    from sklearn.model_selection import train_test_split
     
-    for fold, (train_idx, test_idx) in enumerate(tscv.split(X), 1):
-        print(f"   Fold {fold}: Train={len(train_idx)}, Test={len(test_idx)}")
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=42
+    )
     
-    # Use last fold (largest training set)
-    last_train_idx, last_test_idx = list(tscv.split(X))[-1]
-    
-    X_train = X.iloc[last_train_idx]
-    X_test = X.iloc[last_test_idx]
-    y_train = y.iloc[last_train_idx]
-    y_test = y.iloc[last_test_idx]
-    
-    print(f"   Final split: Train={len(X_train)}, Test={len(X_test)}")
+    print(f"   Train: {len(X_train)}, Test: {len(X_test)}")
     return X_train, X_test, y_train, y_test
 
 

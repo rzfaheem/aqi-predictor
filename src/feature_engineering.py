@@ -43,10 +43,14 @@ def clean_data(df):
     df = df.sort_values('timestamp').reset_index(drop=True)
     
     # Forward-fill missing values (standard for time series)
-    numeric_cols = ['aqi', 'aqi_standard', 'pm2_5', 'pm10', 'no2', 'o3', 'co', 'so2']
+    # Weather columns are often missing from historical backfill data
+    numeric_cols = [
+        'aqi', 'aqi_standard', 'pm2_5', 'pm10', 'no2', 'o3', 'co', 'so2',
+        'temperature', 'humidity', 'pressure', 'wind_speed'
+    ]
     for col in numeric_cols:
         if col in df.columns:
-            df[col] = df[col].ffill()
+            df[col] = df[col].ffill().bfill()
     
     # Cap outliers using IQR method
     if 'aqi_standard' in df.columns:
@@ -160,7 +164,7 @@ def prepare_final_features(df):
     feature_cols = [
         'hour', 'day_of_week', 'day', 'month', 'is_weekend',
         'hour_sin', 'hour_cos',
-        'temp', 'humidity', 'pressure', 'wind_speed', 'clouds',
+        'temperature', 'humidity', 'pressure', 'wind_speed',
         'pm2_5', 'pm10', 'no2', 'o3', 'co', 'so2',
         'aqi_lag_1h', 'aqi_lag_3h', 'aqi_lag_6h', 'aqi_lag_12h', 'aqi_lag_24h',
         'pm25_lag_1h', 'pm25_lag_24h',
