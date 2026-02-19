@@ -1,5 +1,7 @@
 # AQI Prediction System, Faisalabad, Pakistan
 
+**[Live Dashboard](https://aqi-predictor-npwwgzkzmbmbvdwbbfmruv.streamlit.app/)**
+
 A real-time Air Quality Index prediction system that forecasts PM2.5 concentrations for the next 3 days using machine learning, with an interactive Streamlit dashboard.
 
 ## Overview
@@ -23,7 +25,7 @@ This project collects hourly weather and pollution data from the OpenWeather API
 | Data | Pandas, NumPy |
 | Dashboard | Streamlit, Plotly |
 | Database | MongoDB Atlas |
-| API | OpenWeather API |
+| API | OpenWeather API, Open-Meteo API |
 | CI/CD | GitHub Actions |
 
 ## Project Structure
@@ -37,7 +39,8 @@ This project collects hourly weather and pollution data from the OpenWeather API
 │   ├── database.py             # MongoDB operations
 │   ├── feature_engineering.py  # Feature creation pipeline
 │   ├── train_model.py          # Model training and evaluation
-│   ├── backfill_historical.py  # Historical data backfill
+│   ├── backfill_historical.py  # Historical data backfill (OpenWeather)
+│   ├── backfill_open_meteo.py  # 2-year historical backfill (Open-Meteo)
 │   ├── shap_explainer.py       # SHAP model explainability
 │   └── eda_analysis.py         # Exploratory data analysis
 ├── .github/workflows/
@@ -52,7 +55,7 @@ This project collects hourly weather and pollution data from the OpenWeather API
 
 1. **Data Collection**: The feature pipeline runs every hour, fetching temperature, humidity, wind speed, pressure, and pollutant concentrations (PM2.5, PM10, NO2, O3, CO, SO2) from the OpenWeather API.
 
-2. **Feature Engineering**: Raw data is transformed into 36 features including time features (hour, day, weekend), lag features (values from 1–24 hours ago), rolling averages (3h, 6h, 12h, 24h windows), and rate-of-change features.
+2. **Feature Engineering**: Raw data is transformed into 37 features including time features (hour, day, weekend), lag features (values from 1–24 hours ago), rolling averages (3h, 6h, 12h, 24h windows), and rate-of-change features.
 
 3. **Model Training**: Three models (Ridge Regression, Random Forest, XGBoost) are compared using TimeSeriesSplit cross-validation. The model with the lowest RMSE is selected automatically.
 
