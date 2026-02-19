@@ -374,8 +374,7 @@ def main():
         st.markdown("""
         Real-time air quality monitoring and ML-based predictions for **Faisalabad, Pakistan**.
         
-        **Data:** OpenWeather API  
-        **Model:** Multi-output Random Forest  
+        **Data:** OpenWeather API, Open-Meteo API  
         **Updates:** Hourly data collection, daily retraining
         
         **AQI Scale:**
@@ -386,6 +385,24 @@ def main():
         - 🟣 201-300: Very Unhealthy
         - ⚫ 301+: Hazardous
         """)
+        
+        st.markdown("---")
+        st.header("🤖 Model Info")
+        model_data = load_model()
+        if model_data:
+            model_name = model_data.get('model_name', 'Unknown')
+            metrics = model_data.get('metrics', {})
+            trained_at = model_data.get('trained_at', None)
+            
+            st.metric("Model", model_name)
+            if 'r2' in metrics:
+                st.metric("Avg R²", f"{metrics['r2']:.4f}")
+            if 'rmse' in metrics:
+                st.metric("Avg RMSE", f"{metrics['rmse']:.2f}")
+            if trained_at:
+                st.caption(f"Trained: {trained_at.strftime('%Y-%m-%d %H:%M') if hasattr(trained_at, 'strftime') else trained_at}")
+        else:
+            st.warning("No model loaded")
         
         st.markdown("---")
         st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
