@@ -23,7 +23,11 @@ def run_explainability_analysis():
     print("MODEL EXPLAINABILITY ANALYSIS")
     print("=" * 50)
     
-    model_path = "models/best_model_target_24h.pkl"
+    model_path = "models/best_model_multi_output_24h_48h_72h.pkl"
+    
+    # Fallback to old model path
+    if not os.path.exists(model_path):
+        model_path = "models/best_model_target_24h.pkl"
     
     if not os.path.exists(model_path):
         print("Model file not found!")
@@ -55,7 +59,12 @@ def run_explainability_analysis():
     
     # Extract feature importance based on model type
     if hasattr(model, 'coef_'):
-        coefficients = np.abs(model.coef_)
+        coefficients = model.coef_
+        # Multi-output Ridge has 2D coef_ (n_targets x n_features)
+        if coefficients.ndim == 2:
+            coefficients = np.mean(np.abs(coefficients), axis=0)
+        else:
+            coefficients = np.abs(coefficients)
         if scaler is not None:
             importance = coefficients * scaler.scale_
         else:
@@ -139,6 +148,9 @@ def run_explainability_analysis():
     # Plot 3: Impact Direction (linear models only)
     if hasattr(model, 'coef_'):
         signed_coefs = model.coef_
+        # Multi-output: average across targets for direction
+        if signed_coefs.ndim == 2:
+            signed_coefs = np.mean(signed_coefs, axis=0)
         if scaler is not None:
             signed_coefs = signed_coefs * scaler.scale_
         

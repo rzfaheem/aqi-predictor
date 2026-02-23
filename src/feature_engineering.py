@@ -1,5 +1,5 @@
 """
-Feature Engineering - Transforms raw weather/pollution data into ML-ready features.
+Feature Engineering: Transforms raw weather/pollution data into ML-ready features.
 
 Creates time-based, lag, rolling average, and change rate features from raw data,
 then stores them in MongoDB as the feature store for model training.
