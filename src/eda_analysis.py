@@ -33,6 +33,20 @@ def load_data_from_mongodb():
     return df
 
 
+def pm25_to_aqi(pm25):
+    """Convert PM2.5 to EPA AQI using breakpoints."""
+    breakpoints = [
+        (0, 12.0, 0, 50), (12.1, 35.4, 51, 100), (35.5, 55.4, 101, 150),
+        (55.5, 150.4, 151, 200), (150.5, 250.4, 201, 300), (250.5, 500.4, 301, 500),
+    ]
+    if pm25 < 0: return 0
+    if pm25 > 500: return 500
+    for pm_low, pm_high, aqi_low, aqi_high in breakpoints:
+        if pm_low <= pm25 <= pm_high:
+            return round(((aqi_high - aqi_low) / (pm_high - pm_low)) * (pm25 - pm_low) + aqi_low)
+    return 500
+
+
 def clean_data(df):
     """Clean data: parse timestamps, remove duplicates, sort chronologically."""
     print("\nCleaning data...")
@@ -51,6 +65,11 @@ def clean_data(df):
         df['month'] = df['timestamp'].dt.month
         df['is_weekend'] = df['day_of_week'].isin([5, 6]).astype(int)
     
+    # Compute EPA AQI from PM2.5
+    if 'pm2_5' in df.columns:
+        df['epa_aqi'] = df['pm2_5'].apply(pm25_to_aqi)
+        print(f"   EPA AQI computed from PM2.5 (range: {df['epa_aqi'].min()}-{df['epa_aqi'].max()})")
+    
     duplicates = df.duplicated(subset=['timestamp'], keep='first').sum()
     if duplicates > 0:
         df = df.drop_duplicates(subset=['timestamp'], keep='first')
@@ -67,16 +86,16 @@ def generate_summary_statistics(df):
     print("SUMMARY STATISTICS")
     print("=" * 60)
     
-    numeric_cols = ['aqi', 'aqi_standard', 'pm2_5', 'pm10', 'no2', 'o3', 'co', 'so2']
+    numeric_cols = ['epa_aqi', 'pm2_5', 'pm10', 'no2', 'o3', 'co', 'so2']
     available_cols = [col for col in numeric_cols if col in df.columns]
     
     if available_cols:
         stats = df[available_cols].describe()
         print(stats.round(2).to_string())
         
-        if 'aqi_standard' in df.columns:
-            print(f"\n   Average AQI: {df['aqi_standard'].mean():.1f}")
-            print(f"   AQI Range: {df['aqi_standard'].min():.0f} - {df['aqi_standard'].max():.0f}")
+        if 'epa_aqi' in df.columns:
+            print(f"\n   Average EPA AQI: {df['epa_aqi'].mean():.1f}")
+            print(f"   AQI Range: {df['epa_aqi'].min():.0f} - {df['epa_aqi'].max():.0f}")
         if 'pm2_5' in df.columns:
             print(f"   Average PM2.5: {df['pm2_5'].mean():.2f} ug/m3")
 
@@ -91,14 +110,14 @@ def create_visualizations(df, output_dir="notebooks/eda_charts"):
     
     # 1. AQI Over Time
     fig, ax = plt.subplots(figsize=(14, 6))
-    ax.plot(df['timestamp'], df['aqi_standard'], linewidth=1, alpha=0.7, color='#e74c3c')
-    ax.fill_between(df['timestamp'], df['aqi_standard'], alpha=0.3, color='#e74c3c')
+    ax.plot(df['timestamp'], df['epa_aqi'], linewidth=0.8, alpha=0.7, color='#e74c3c')
+    ax.fill_between(df['timestamp'], df['epa_aqi'], alpha=0.2, color='#e74c3c')
     ax.axhline(y=50, color='green', linestyle='--', alpha=0.5, label='Good (0-50)')
     ax.axhline(y=100, color='yellow', linestyle='--', alpha=0.5, label='Moderate (51-100)')
     ax.axhline(y=150, color='orange', linestyle='--', alpha=0.5, label='Unhealthy for Sensitive (101-150)')
     ax.axhline(y=200, color='red', linestyle='--', alpha=0.5, label='Unhealthy (151-200)')
     ax.set_xlabel('Date', fontsize=12)
-    ax.set_ylabel('AQI (Standard Scale)', fontsize=12)
+    ax.set_ylabel('AQI (EPA Scale)', fontsize=12)
     ax.set_title('Air Quality Index Over Time - Faisalabad', fontsize=14, fontweight='bold')
     ax.legend(loc='upper right')
     plt.xticks(rotation=45)
@@ -108,7 +127,7 @@ def create_visualizations(df, output_dir="notebooks/eda_charts"):
     
     # 2. AQI Distribution
     fig, ax = plt.subplots(figsize=(10, 6))
-    n, bins, patches = ax.hist(df['aqi_standard'], bins=30, edgecolor='white', alpha=0.7)
+    n, bins, patches = ax.hist(df['epa_aqi'], bins=30, edgecolor='white', alpha=0.7)
     for i, patch in enumerate(patches):
         bin_center = (bins[i] + bins[i+1]) / 2
         if bin_center <= 50:
@@ -121,9 +140,9 @@ def create_visualizations(df, output_dir="notebooks/eda_charts"):
             patch.set_facecolor('red')
         else:
             patch.set_facecolor('purple')
-    ax.axvline(df['aqi_standard'].mean(), color='black', linestyle='--', linewidth=2, label=f'Mean: {df["aqi_standard"].mean():.1f}')
-    ax.set_xlabel('AQI Value', fontsize=12)
-    ax.set_ylabel('Frequency', fontsize=12)
+    ax.axvline(df['epa_aqi'].mean(), color='black', linestyle='--', linewidth=2, label=f'Mean: {df["epa_aqi"].mean():.1f}')
+    ax.set_xlabel('AQI (EPA Scale)', fontsize=12)
+    ax.set_ylabel('Frequency (Count)', fontsize=12)
     ax.set_title('Distribution of AQI Values', fontsize=14, fontweight='bold')
     ax.legend()
     plt.tight_layout()
@@ -132,9 +151,9 @@ def create_visualizations(df, output_dir="notebooks/eda_charts"):
     
     # 3. AQI by Hour (Box Plot)
     fig, ax = plt.subplots(figsize=(14, 6))
-    df.boxplot(column='aqi_standard', by='hour', ax=ax)
+    df.boxplot(column='epa_aqi', by='hour', ax=ax)
     ax.set_xlabel('Hour of Day', fontsize=12)
-    ax.set_ylabel('AQI', fontsize=12)
+    ax.set_ylabel('AQI (EPA Scale)', fontsize=12)
     ax.set_title('AQI Patterns Throughout the Day', fontsize=14, fontweight='bold')
     plt.suptitle('')
     plt.tight_layout()
@@ -144,12 +163,12 @@ def create_visualizations(df, output_dir="notebooks/eda_charts"):
     # 4. AQI by Day of Week
     fig, ax = plt.subplots(figsize=(10, 6))
     day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    daily_avg = df.groupby('day_name')['aqi_standard'].mean().reindex(day_order)
+    daily_avg = df.groupby('day_name')['epa_aqi'].mean().reindex(day_order)
     colors = ['#3498db' if day not in ['Saturday', 'Sunday'] else '#e74c3c' for day in day_order]
     ax.bar(day_order, daily_avg.values, color=colors, edgecolor='white')
-    ax.axhline(y=df['aqi_standard'].mean(), color='black', linestyle='--', label=f'Overall Mean: {df["aqi_standard"].mean():.1f}')
+    ax.axhline(y=df['epa_aqi'].mean(), color='black', linestyle='--', label=f'Overall Mean: {df["epa_aqi"].mean():.1f}')
     ax.set_xlabel('Day of Week', fontsize=12)
-    ax.set_ylabel('Average AQI', fontsize=12)
+    ax.set_ylabel('Average AQI (EPA Scale)', fontsize=12)
     ax.set_title('Average AQI by Day of Week (Red = Weekend)', fontsize=14, fontweight='bold')
     ax.legend()
     plt.xticks(rotation=45)
@@ -158,9 +177,9 @@ def create_visualizations(df, output_dir="notebooks/eda_charts"):
     plt.close()
     
     # 5. Correlation Heatmap
-    corr_cols = ['aqi_standard', 'pm2_5', 'pm10', 'no2', 'o3', 'co', 'so2', 'hour', 'day_of_week']
+    corr_cols = ['epa_aqi', 'pm2_5', 'pm10', 'no2', 'o3', 'co', 'so2', 'temperature', 'humidity', 'wind_speed', 'hour']
     available_corr_cols = [col for col in corr_cols if col in df.columns]
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(12, 10))
     correlation_matrix = df[available_corr_cols].corr()
     sns.heatmap(correlation_matrix, annot=True, cmap='RdYlBu_r', center=0, 
                 square=True, linewidths=0.5, ax=ax, fmt='.2f', annot_kws={'size': 10})
@@ -171,7 +190,7 @@ def create_visualizations(df, output_dir="notebooks/eda_charts"):
     
     # 6. PM2.5 vs PM10 Scatter
     fig, ax = plt.subplots(figsize=(10, 8))
-    scatter = ax.scatter(df['pm2_5'], df['pm10'], c=df['aqi_standard'], 
+    scatter = ax.scatter(df['pm2_5'], df['pm10'], c=df['epa_aqi'], 
                         cmap='RdYlGn_r', alpha=0.6, s=50)
     plt.colorbar(scatter, label='AQI')
     ax.set_xlabel('PM2.5 (ug/m3)', fontsize=12)
