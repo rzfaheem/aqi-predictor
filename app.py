@@ -272,9 +272,6 @@ def main():
             now = datetime.now()
             
             forecast_data = [
-                {'hours': 1, 'pm25': current_pm25 + (pm25_24h - current_pm25) * (1/24), 'type': 'interpolated'},
-                {'hours': 6, 'pm25': current_pm25 + (pm25_24h - current_pm25) * (6/24), 'type': 'interpolated'},
-                {'hours': 12, 'pm25': current_pm25 + (pm25_24h - current_pm25) * (12/24), 'type': 'interpolated'},
                 {'hours': 24, 'pm25': pm25_24h, 'type': 'ML predicted ✓'},
                 {'hours': 48, 'pm25': pm25_48h, 'type': 'ML predicted ✓'},
                 {'hours': 72, 'pm25': pm25_72h, 'type': 'ML predicted ✓'},
