@@ -25,3 +25,10 @@ env/
 
 # Keep the models folder but ignore model files
 !models/.gitkeep
+
+# Personal/presentation files
+*.pptx
+*.html
+VIDEO_SCRIPT.md
+viva_preparation_guide.md
+Project Report.pdf
